@@ -1,0 +1,9 @@
+{
+  "name": "riza-agro-sistema-teste",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Versao de teste online local para propostas comerciais Riza Agro.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

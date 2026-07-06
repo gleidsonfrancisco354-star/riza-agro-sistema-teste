@@ -1,0 +1,57 @@
+PASSO A PASSO - SUBIR SISTEMA RIZA AGRO NO RENDER
+
+PASTA DO SISTEMA:
+C:\Users\GLEIDSON\Documents\Codex\2026-07-05\quero-transformar-meu-dashboard-html-da-3\outputs\riza-agro-sistema-teste
+
+1. CRIAR CONTA NO GITHUB
+- Acesse: https://github.com
+- Clique em Sign up
+- Crie sua conta ou entre com uma conta existente.
+
+2. CRIAR UM REPOSITORIO
+- No GitHub, clique no botao + no canto superior direito.
+- Clique em New repository.
+- Nome sugerido: riza-agro-sistema-teste
+- Marque como Private, se quiser deixar privado.
+- Clique em Create repository.
+
+3. ENVIAR OS ARQUIVOS
+- Dentro do repositorio criado, clique em uploading an existing file.
+- Arraste TODOS os arquivos e pastas de:
+  C:\Users\GLEIDSON\Documents\Codex\2026-07-05\quero-transformar-meu-dashboard-html-da-3\outputs\riza-agro-sistema-teste
+- Precisa enviar:
+  data
+  public
+  server.js
+  package.json
+- Clique em Commit changes.
+
+4. CRIAR CONTA NO RENDER
+- Acesse: https://render.com
+- Clique em Get Started ou Sign Up.
+- Entre usando sua conta do GitHub.
+
+5. CRIAR O SERVICO ONLINE
+- No painel do Render, clique em New.
+- Clique em Web Service.
+- Escolha o repositorio: riza-agro-sistema-teste.
+- Configure assim:
+  Name: riza-agro-sistema-teste
+  Runtime: Node
+  Build Command: npm install
+  Start Command: npm start
+
+6. CLICAR EM DEPLOY
+- Clique em Create Web Service.
+- Aguarde o Render finalizar.
+- Ele vai gerar um link parecido com:
+  https://riza-agro-sistema-teste.onrender.com
+
+LOGIN DE TESTE:
+admin@rizaagro.test
+senha: 123456
+
+IMPORTANTE:
+Esta versao serve para teste.
+Para uso oficial, o ideal e trocar o arquivo data/db.json por banco de dados PostgreSQL,
+para nao correr risco de perder historico em atualizacoes.

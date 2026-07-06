@@ -1,0 +1,211 @@
+{
+  "nextProposalNumber": 9,
+  "users": [
+    {
+      "id": "admin",
+      "name": "Diretoria Comercial",
+      "email": "admin@rizaagro.test",
+      "password": "123456",
+      "role": "Administrador",
+      "active": true,
+      "permissions": [
+        "dashboard",
+        "proposal",
+        "rizaPlus",
+        "virtus",
+        "finance",
+        "clients",
+        "products",
+        "history",
+        "reports",
+        "users"
+      ]
+    },
+    {
+      "id": "consultor",
+      "name": "Consultor Comercial",
+      "email": "consultor@rizaagro.test",
+      "password": "123456",
+      "role": "Consultor",
+      "active": true,
+      "permissions": [
+        "dashboard",
+        "proposal",
+        "clients",
+        "products",
+        "history",
+        "reports"
+      ]
+    },
+    {
+      "id": "e1f03fa1-f476-4d4e-8507-cfc51bce4680",
+      "name": "ANA PAULA FERNANDES MATOS",
+      "email": "paulinha29_unai@hotmail.com",
+      "password": "160188",
+      "role": "Vendedor",
+      "active": true,
+      "permissions": [
+        "dashboard",
+        "proposal",
+        "rizaPlus",
+        "virtus",
+        "finance",
+        "clients",
+        "products",
+        "history",
+        "reports"
+      ]
+    }
+  ],
+  "proposals": [
+    {
+      "id": "44bcb14e-1cf2-4e1d-af15-457603d71693",
+      "number": 7,
+      "code": "RZ-00007",
+      "status": "Emitida",
+      "customer": {
+        "name": "Gleidson Francisco dos Santos",
+        "company": "Fazenda Liberdade",
+        "document": "088.598.556-75",
+        "phone": "(38) 9 99990-7248",
+        "email": "gleidsonfrancisco@hotmail.com",
+        "city": "Unaí - MG"
+      },
+      "items": [
+        {
+          "line": "RIZA+",
+          "product": "RUZIZIENSIS",
+          "standard": "80",
+          "package": "Saco 20 kg",
+          "quantity": 1000,
+          "unitPrice": 15.56,
+          "discountPct": 5,
+          "grossTotal": 15560,
+          "total": 14782
+        }
+      ],
+      "payment": "Entrada + Parcelas",
+      "validity": "7 dias",
+      "notes": "Ex.: 90 dias direto, entrada a combinar, safra...",
+      "financial": {
+        "discountPct": 0,
+        "entryPct": 0,
+        "interestPct": 2,
+        "installments": 2,
+        "firstInstallmentDate": "2027-02-05",
+        "commissionBasePct": 14.18,
+        "commissionFinalPct": 14.18,
+        "marginPct": 15,
+        "saleModel": "Canal Direto",
+        "installmentSchedule": [
+          {
+            "label": "1ª parcela",
+            "date": "2027-02-05",
+            "amount": 7.78
+          },
+          {
+            "label": "2ª parcela",
+            "date": "2027-03-05",
+            "amount": 7.78
+          }
+        ]
+      },
+      "createdBy": "admin",
+      "createdByName": "Diretoria Comercial",
+      "createdAt": "2026-07-05T21:57:33.284Z",
+      "createdAtLabel": "05/07/2026, 18:57:33",
+      "discount": 778,
+      "total": 14782,
+      "installments": [
+        {
+          "label": "1ª parcela",
+          "date": "05/02/2027",
+          "amount": 7.78
+        },
+        {
+          "label": "2ª parcela",
+          "date": "05/03/2027",
+          "amount": 7.78
+        }
+      ]
+    },
+    {
+      "id": "34c29882-42a5-4518-b712-dd3a7391e8eb",
+      "number": 8,
+      "code": "RZ-00008",
+      "status": "Emitida",
+      "customer": {
+        "name": "Gleidson Francisco dos Santos",
+        "company": "Fazenda Liberdade",
+        "document": "088.598.556-75",
+        "stateRegistration": "001.001.0001-01",
+        "address": "Rodovia GO 020",
+        "zip": "38616-782",
+        "phone": "(38) 99990-7248",
+        "email": "gleidsonfrancisco@hotmail.com",
+        "city": "Unaí - MG",
+        "proposalDate": "2026-07-05"
+      },
+      "items": [
+        {
+          "line": "RIZA+",
+          "product": "RUZIZIENSIS",
+          "standard": "80",
+          "package": "Saco 20 kg",
+          "quantity": 1000,
+          "unitPrice": 15.56,
+          "discountPct": 5,
+          "grossTotal": 15560,
+          "total": 14782
+        }
+      ],
+      "payment": "Entrada + Parcelas",
+      "validity": "7 dias",
+      "notes": "Ex.: 90 dias direto, entrada a combinar, safra...",
+      "financial": {
+        "discountPct": 0,
+        "entryPct": 0,
+        "interestPct": 2,
+        "installments": 2,
+        "firstInstallmentDate": "2026-07-05",
+        "commissionBasePct": 14.18,
+        "commissionFinalPct": 9.18,
+        "marginPct": 15,
+        "saleModel": "representante",
+        "saleModelLabel": "Representante Comercial",
+        "installmentSchedule": [
+          {
+            "label": "1ª parcela",
+            "date": "2027-02-05",
+            "amount": 7689.6
+          },
+          {
+            "label": "2ª parcela",
+            "date": "2027-03-05",
+            "amount": 7689.6
+          }
+        ]
+      },
+      "attachments": [],
+      "createdBy": "admin",
+      "createdByName": "Diretoria Comercial",
+      "createdAt": "2026-07-05T22:38:53.271Z",
+      "createdAtLabel": "05/07/2026, 19:38:53",
+      "discount": 778,
+      "total": 14782,
+      "installments": [
+        {
+          "label": "1ª parcela",
+          "date": "05/02/2027",
+          "amount": 7689.6
+        },
+        {
+          "label": "2ª parcela",
+          "date": "05/03/2027",
+          "amount": 7689.6
+        }
+      ]
+    }
+  ],
+  "clients": []
+}

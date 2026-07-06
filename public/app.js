@@ -52,16 +52,16 @@ const commissionPolicies = {
 };
 
 const modules = [
-  ["dashboard", "DASHBOARD", "⌂"],
-  ["proposal", "PROPOSTA COMERCIAL", "▤"],
+  ["dashboard", "DASHBOARD", "âŒ‚"],
+  ["proposal", "PROPOSTA COMERCIAL", "â–¤"],
   ["rizaPlus", "RIZA+", "+"],
-  ["virtus", "RIZA VIRTUS", "☘"],
-  ["finance", "SIMULADOR FINANCEIRO", "▦"],
-  ["clients", "CLIENTES", "♟"],
-  ["products", "PRODUTOS", "■"],
-  ["history", "HISTORICO", "↻"],
-  ["reports", "RELATORIOS", "▥"],
-  ["users", "CONFIGURACOES", "⚙"]
+  ["virtus", "RIZA VIRTUS", "â˜˜"],
+  ["finance", "SIMULADOR FINANCEIRO", "â–¦"],
+  ["clients", "CLIENTES", "â™Ÿ"],
+  ["products", "PRODUTOS", "â– "],
+  ["history", "HISTORICO", "â†»"],
+  ["reports", "RELATORIOS", "â–¥"],
+  ["users", "CONFIGURACOES", "âš™"]
 ];
 
 async function api(path, options = {}) {
@@ -136,12 +136,16 @@ function prazoIndex(days) {
 function priceForDays(product, days) {
   const index = prazoIndex(days);
   if (Array.isArray(product?.prazos) && product.prazos[index] !== undefined) return Number(product.prazos[index]);
-  return Number(product?.preco || 0) * Math.pow(1.02, index);
+  const monthlyInterest = Number($("financeInterest")?.value || 2) / 100;
+  return Number(product?.preco || 0) * Math.pow(1 + monthlyInterest, index);
 }
 
 function paymentHorizonDays() {
-  const entryDays = Number($("entryDays")?.value || 0);
-  const parcelDays = [...document.querySelectorAll(".installmentDaysInput")].map((input) => Number(input.value || 0));
+  const today = new Date();
+  const entryDate = $("entryDate")?.value ? new Date(`${$("entryDate").value}T00:00:00`) : null;
+  const entryDays = entryDate ? Math.max(0, Math.round((entryDate - today) / 86400000)) : 0;
+  const parcelDays = [...document.querySelectorAll(".installmentDateInput")]
+    .map((input) => input.value ? Math.max(0, Math.round((new Date(`${input.value}T00:00:00`) - today) / 86400000)) : 0);
   if (parcelDays.length) return Math.max(entryDays, ...parcelDays);
   const count = Number($("financeInstallments")?.value || 0);
   return Math.max(entryDays, count > 0 ? count * 30 : 0);
@@ -221,7 +225,7 @@ function renderProducts() {
 function renderProductCards(target, products) {
   if (!$(target)) return;
   $(target).innerHTML = products.map((product) => `
-    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} • ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
+    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} â€¢ ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
   ).join("");
 }
 
@@ -431,7 +435,7 @@ function renderUsers() {
   $("newUserPerms").innerHTML = permissionCheckboxes(["dashboard", "proposal", "history"]);
   $("usersList").innerHTML = state.users.map((user) => `
     <div class="userCard" data-user="${user.id}">
-      <div><b>${user.name}</b><span>${user.email}</span><small>${user.role} • ${user.active ? "Ativo" : "Inativo"}</small></div>
+      <div><b>${user.name}</b><span>${user.email}</span><small>${user.role} â€¢ ${user.active ? "Ativo" : "Inativo"}</small></div>
       <div class="permGrid">${permissionCheckboxes(user.permissions || [])}</div>
       <div class="rowActions"><button class="secondaryBtn savePermBtn">Salvar permissoes</button><button class="dangerTiny deleteUserBtn">Excluir usuario</button></div>
     </div>`).join("");
@@ -565,10 +569,9 @@ function collectFinancial() {
   return {
     discountPct: Number($("discountPct")?.value || 0),
     entryPct: Number($("financeEntry")?.value || 0),
-    entryDays: Number($("entryDays")?.value || 0),
+    entryDate: $("entryDate")?.value || "",
     interestPct: Number($("financeInterest")?.value || 0),
     installments: Number($("financeInstallments")?.value || 0),
-    firstInstallmentDate: $("firstInstallmentDate")?.value || "",
     paymentHorizonDays: paymentHorizonDays(),
     totalWithoutInterest: state.currentTotals?.cashFinalTotal || 0,
     totalWithInterest: state.currentTotals?.finalTotal || 0,
@@ -578,9 +581,7 @@ function collectFinancial() {
     saleModel: $("saleModel")?.value || "representante",
     saleModelLabel: getCommissionPolicy().label,
     installmentSchedule: [...document.querySelectorAll(".installmentRow")].map((row, index) => ({
-      label: `${index + 1}ª parcela`,
-      percent: Number(row.querySelector(".installmentPctInput")?.value || 0),
-      days: Number(row.querySelector(".installmentDaysInput")?.value || 0),
+      label: `${index + 1}Âª parcela`,
       date: row.querySelector(".installmentDateInput")?.value || "",
       amount: Number(row.querySelector(".installmentAmountInput")?.value || 0)
     }))
@@ -595,15 +596,14 @@ function calcFinance(finalTotal = null) {
   const entry = base * entryPct / 100;
   const parcelTotal = Math.max(0, base - entry);
   const cashTotal = state.currentTotals?.cashFinalTotal || base;
-  $("financeResult").innerHTML = `<b>Total sem juros<br>${brl(cashTotal)}</b><b>Valor das parcelas<br>${brl(parcelTotal)}</b><b>Total final negociado<br>${brl(base)}</b>`;
-  renderInstallments(parcelTotal, rawInstallments, entryPct);
+  if ($("entryDateLabel")) $("entryDateLabel").classList.toggle("hidden", entryPct <= 0);
+  $("financeResult").innerHTML = `<b>Total sem juros<br>${brl(cashTotal)}</b><b>Entrada<br>${brl(entry)}</b><b>Valor parcelado<br>${brl(parcelTotal)}</b>`;
+  renderInstallments(parcelTotal, rawInstallments);
 }
 
-function renderInstallments(amount, count, entryPct = 0) {
+function renderInstallments(amount, count) {
   if (!$("installmentsBox")) return;
   const previous = [...document.querySelectorAll(".installmentRow")].map((row) => ({
-    pct: row.querySelector(".installmentPctInput")?.value || "",
-    days: row.querySelector(".installmentDaysInput")?.value || "",
     date: row.querySelector(".installmentDateInput")?.value || "",
     amount: row.querySelector(".installmentAmountInput")?.value || ""
   }));
@@ -611,25 +611,21 @@ function renderInstallments(amount, count, entryPct = 0) {
     $("installmentsBox").innerHTML = `<div class="emptyState compact">Informe o numero de parcelas para gerar as datas.</div>`;
     return;
   }
-  const baseDate = $("firstInstallmentDate")?.value ? new Date(`${$("firstInstallmentDate").value}T00:00:00`) : new Date();
-  const parcelPct = count > 0 ? Math.max(0, 100 - entryPct) / count : 0;
+  const baseDate = $("entryDate")?.value ? new Date(`${$("entryDate").value}T00:00:00`) : new Date();
+  const defaultAmount = count > 0 ? amount / count : 0;
   const rows = Array.from({ length: count }, (_, index) => {
     const date = new Date(baseDate);
-    date.setMonth(date.getMonth() + index);
+    date.setMonth(date.getMonth() + index + 1);
     const isoDate = previous[index]?.date || date.toISOString().slice(0, 10);
-    const pct = previous[index]?.pct || parcelPct.toFixed(2);
-    const days = previous[index]?.days || String((index + 1) * 30);
-    const value = previous[index]?.amount || (amount * Number(pct) / Math.max(1, 100 - entryPct)).toFixed(2);
+    const value = previous[index]?.amount || defaultAmount.toFixed(2);
     return `<tr class="installmentRow">
-      <td>${index + 1}ª parcela</td>
-      <td><input class="installmentPctInput" type="number" min="0" step="0.01" value="${pct}"></td>
-      <td><input class="installmentDaysInput" type="number" min="0" step="1" value="${days}"></td>
+      <td>${index + 1}Âª parcela</td>
       <td><input class="installmentDateInput" type="date" value="${isoDate}"></td>
       <td><input class="installmentAmountInput" type="number" min="0" step="0.01" value="${value}"></td>
     </tr>`;
   }).join("");
-  $("installmentsBox").innerHTML = `<h3>Cronograma de parcelas</h3><table><thead><tr><th>Parcela</th><th>% do total</th><th>Dias</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
-  $("installmentsBox").querySelectorAll(".installmentPctInput,.installmentDaysInput").forEach((input) => input.addEventListener("change", calculateTotals));
+  $("installmentsBox").innerHTML = `<h3>Cronograma de parcelas</h3><table><thead><tr><th>Parcela</th><th>Data</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
+  $("installmentsBox").querySelectorAll(".installmentDateInput,.installmentAmountInput").forEach((input) => input.addEventListener("change", calculateTotals));
 }
 
 function getCommissionPolicy() {
@@ -686,6 +682,7 @@ async function boot() {
     renderAll(data.nextCode);
     addItem();
     if ($("proposalDate")) $("proposalDate").valueAsDate = new Date();
+    if ($("entryDate")) $("entryDate").valueAsDate = new Date();
     if ($("firstInstallmentDate")) $("firstInstallmentDate").valueAsDate = new Date();
     showPage(can("dashboard") ? "dashboard" : state.user.permissions[0]);
   } catch {
@@ -719,7 +716,7 @@ if ($("attachmentInput")) $("attachmentInput").addEventListener("change", (event
 ].forEach(([id, mask]) => {
   if ($(id)) $(id).addEventListener("input", () => { $(id).value = mask($(id).value); });
 });
-["payment", "financeEntry", "entryDays", "financeInstallments", "discountPct", "marginPct", "firstInstallmentDate", "saleModel"].forEach((id) => {
+["payment", "financeEntry", "entryDate", "financeInterest", "financeInstallments", "discountPct", "marginPct", "saleModel"].forEach((id) => {
   if ($(id)) $(id).addEventListener("input", calculateTotals);
   if ($(id)) $(id).addEventListener("change", calculateTotals);
 });

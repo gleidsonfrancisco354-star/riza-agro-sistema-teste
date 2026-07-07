@@ -52,16 +52,16 @@ const commissionPolicies = {
 };
 
 const modules = [
-  ["dashboard", "DASHBOARD", "âŒ‚"],
-  ["proposal", "PROPOSTA COMERCIAL", "â–¤"],
+  ["dashboard", "DASHBOARD", "D"],
+  ["proposal", "PROPOSTA COMERCIAL", "P"],
   ["rizaPlus", "RIZA+", "+"],
-  ["virtus", "RIZA VIRTUS", "â˜˜"],
-  ["finance", "SIMULADOR FINANCEIRO", "â–¦"],
-  ["clients", "CLIENTES", "â™Ÿ"],
-  ["products", "PRODUTOS", "â– "],
-  ["history", "HISTORICO", "â†»"],
-  ["reports", "RELATORIOS", "â–¥"],
-  ["users", "CONFIGURACOES", "âš™"]
+  ["virtus", "RIZA VIRTUS", "V"],
+  ["finance", "SIMULADOR FINANCEIRO", "F"],
+  ["clients", "CLIENTES", "C"],
+  ["products", "PRODUTOS", "I"],
+  ["history", "HISTORICO", "H"],
+  ["reports", "RELATORIOS", "R"],
+  ["users", "CONFIGURACOES", "U"]
 ];
 
 async function api(path, options = {}) {

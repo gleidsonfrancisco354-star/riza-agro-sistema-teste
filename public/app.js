@@ -463,7 +463,9 @@ function clearProposal() {
   addItem();
 }
 
-async function saveProposal() {
+async function saveProposal(options = {}) {
+  const shouldOpenPdf = !!options.openPdf;
+  const pdfWindow = shouldOpenPdf ? window.open("about:blank", "_blank") : null;
   $("formError").textContent = "";
   const payload = {
     customer: {
@@ -491,8 +493,13 @@ async function saveProposal() {
     renderAll(data.nextCode);
     clearProposal();
     showPage("history");
-    window.open(`/api/proposals/${data.proposal.id}/pdf`, "_blank");
+    if (shouldOpenPdf) {
+      const pdfUrl = `/api/proposals/${data.proposal.id}/pdf`;
+      if (pdfWindow) pdfWindow.location.href = pdfUrl;
+      else window.open(pdfUrl, "_blank");
+    }
   } catch (error) {
+    if (pdfWindow) pdfWindow.close();
     $("formError").textContent = error.message;
   }
 }
@@ -581,7 +588,7 @@ function collectFinancial() {
     saleModel: $("saleModel")?.value || "representante",
     saleModelLabel: getCommissionPolicy().label,
     installmentSchedule: [...document.querySelectorAll(".installmentRow")].map((row, index) => ({
-      label: `${index + 1}Âª parcela`,
+      label: `Parcela ${index + 1}`,
       date: row.querySelector(".installmentDateInput")?.value || "",
       amount: Number(row.querySelector(".installmentAmountInput")?.value || 0)
     }))
@@ -619,7 +626,7 @@ function renderInstallments(amount, count) {
     const isoDate = previous[index]?.date || date.toISOString().slice(0, 10);
     const value = previous[index]?.amount || defaultAmount.toFixed(2);
     return `<tr class="installmentRow">
-      <td>${index + 1}Âª parcela</td>
+      <td>Parcela ${index + 1}</td>
       <td><input class="installmentDateInput" type="date" value="${isoDate}"></td>
       <td><input class="installmentAmountInput" type="number" min="0" step="0.01" value="${value}"></td>
     </tr>`;
@@ -683,7 +690,6 @@ async function boot() {
     addItem();
     if ($("proposalDate")) $("proposalDate").valueAsDate = new Date();
     if ($("entryDate")) $("entryDate").valueAsDate = new Date();
-    if ($("firstInstallmentDate")) $("firstInstallmentDate").valueAsDate = new Date();
     showPage(can("dashboard") ? "dashboard" : state.user.permissions[0]);
   } catch {
     $("loginView").classList.remove("hidden");
@@ -704,9 +710,9 @@ $("loginForm").addEventListener("submit", async (event) => {
 
 $("logoutBtn").addEventListener("click", async () => { await api("/api/logout", { method: "POST" }); location.reload(); });
 if ($("addItemBtn")) $("addItemBtn").addEventListener("click", () => addItem());
-if ($("saveProposalBtn")) $("saveProposalBtn").addEventListener("click", saveProposal);
-if ($("pdfTopBtn")) $("pdfTopBtn").addEventListener("click", saveProposal);
-if ($("pdfBottomBtn")) $("pdfBottomBtn").addEventListener("click", saveProposal);
+if ($("saveProposalBtn")) $("saveProposalBtn").addEventListener("click", () => saveProposal({ openPdf: false }));
+if ($("pdfTopBtn")) $("pdfTopBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
+if ($("pdfBottomBtn")) $("pdfBottomBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
 if ($("createUserBtn")) $("createUserBtn").addEventListener("click", createUser);
 if ($("attachmentInput")) $("attachmentInput").addEventListener("change", (event) => addAttachments(event.target.files));
 [

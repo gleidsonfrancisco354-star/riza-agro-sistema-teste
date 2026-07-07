@@ -52,16 +52,16 @@ const commissionPolicies = {
 };
 
 const modules = [
-  ["dashboard", "DASHBOARD", "D"],
-  ["proposal", "PROPOSTA COMERCIAL", "P"],
-  ["rizaPlus", "RIZA+", "+"],
-  ["virtus", "RIZA VIRTUS", "V"],
-  ["finance", "SIMULADOR FINANCEIRO", "F"],
-  ["clients", "CLIENTES", "C"],
-  ["products", "PRODUTOS", "I"],
-  ["history", "HISTORICO", "H"],
-  ["reports", "RELATORIOS", "R"],
-  ["users", "CONFIGURACOES", "U"]
+  ["dashboard", "DASHBOARD", "dashboard"],
+  ["proposal", "PROPOSTA COMERCIAL", "proposal"],
+  ["rizaPlus", "RIZA+", "plus"],
+  ["virtus", "RIZA VIRTUS", "leaf"],
+  ["finance", "SIMULADOR FINANCEIRO", "finance"],
+  ["clients", "CLIENTES", "clients"],
+  ["products", "PRODUTOS", "products"],
+  ["history", "HISTORICO", "history"],
+  ["reports", "RELATORIOS", "reports"],
+  ["users", "CONFIGURACOES", "settings"]
 ];
 
 async function api(path, options = {}) {
@@ -170,7 +170,7 @@ function showFileModeMessage() {
 
 function buildNav() {
   $("navList").innerHTML = modules.filter(([id]) => can(id)).map(([id, label, icon]) => (
-    `<button class="navBtn ${id === "dashboard" ? "active" : ""}" data-page="${id}"><span>${icon}</span>${label}</button>`
+    `<button class="navBtn ${id === "dashboard" ? "active" : ""}" data-page="${id}"><span class="navIcon icon-${icon}"></span>${label}</button>`
   )).join("");
   document.querySelectorAll(".navBtn").forEach((button) => button.addEventListener("click", () => showPage(button.dataset.page)));
 }

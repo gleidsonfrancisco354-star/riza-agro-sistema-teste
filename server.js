@@ -373,7 +373,7 @@ async function handleApi(req, res, pathname) {
       proposal.installments = proposal.financial.installmentSchedule
         .filter((item) => Number(item.amount || 0) > 0 || item.date)
         .map((item, index) => ({
-          label: item.label || `${index + 1}ª parcela`,
+          label: item.label || `Parcela ${index + 1}`,
           date: formatDate(item.date),
           amount: Number(item.amount || 0)
         }));
@@ -382,11 +382,12 @@ async function handleApi(req, res, pathname) {
       const financed = proposal.total - entry;
       const totalWithInterest = entry + financed * Math.pow(1 + interest, count);
       const parcelAmount = (totalWithInterest - entry) / count;
-      const baseDate = proposal.financial.firstInstallmentDate ? new Date(`${proposal.financial.firstInstallmentDate}T00:00:00`) : new Date();
+      const baseDateValue = proposal.financial.entryDate || proposal.financial.firstInstallmentDate;
+      const baseDate = baseDateValue ? new Date(`${baseDateValue}T00:00:00`) : new Date();
       proposal.installments = Array.from({ length: count }, (_, index) => {
         const date = new Date(baseDate);
-        date.setMonth(date.getMonth() + index);
-        return { label: `${index + 1}ª parcela`, date: date.toLocaleDateString("pt-BR"), amount: parcelAmount };
+        date.setMonth(date.getMonth() + index + 1);
+        return { label: `Parcela ${index + 1}`, date: date.toLocaleDateString("pt-BR"), amount: parcelAmount };
       });
     } else {
       proposal.installments = [];

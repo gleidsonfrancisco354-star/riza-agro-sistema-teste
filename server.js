@@ -94,8 +94,12 @@ function proposalCode(number) {
   return `RZ-${String(number).padStart(5, "0")}`;
 }
 
+function round2(value) {
+  return Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+}
+
 function money(value) {
-  return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return round2(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
 function formatDate(value) {
@@ -130,10 +134,13 @@ function pdfHtml(proposal) {
   const cashGross = proposal.items.reduce((sum, item) => sum + Number(item.grossCashTotal ?? (Number(item.quantity || 0) * Number(item.cashUnitPrice || item.unitPrice || 0))), 0);
   const itemDiscount = proposal.items.reduce((sum, item) => sum + (Number(item.grossTotal ?? (Number(item.quantity || 0) * Number(item.unitPrice || 0))) - Number(item.total || 0)), 0);
   const cashItemDiscount = proposal.items.reduce((sum, item) => sum + (Number(item.grossCashTotal ?? (Number(item.quantity || 0) * Number(item.cashUnitPrice || item.unitPrice || 0))) - Number(item.cashTotal || item.total || 0)), 0);
-  const discount = itemDiscount + Math.max(0, gross - itemDiscount) * discountPct / 100;
-  const cashDiscount = cashItemDiscount + Math.max(0, cashGross - cashItemDiscount) * discountPct / 100;
-  const finalTotal = Math.max(0, gross - discount);
-  const finalCashTotal = Number(proposal.totalWithoutInterest ?? Math.max(0, cashGross - cashDiscount));
+  const freight = financial.freightEnabled ? round2(Number(financial.freightValue || proposal.freight || 0)) : round2(Number(proposal.freight || 0));
+  const discount = round2(itemDiscount + Math.max(0, gross - itemDiscount) * discountPct / 100);
+  const cashDiscount = round2(cashItemDiscount + Math.max(0, cashGross - cashItemDiscount) * discountPct / 100);
+  const finalTotalNoFreight = round2(Math.max(0, gross - discount));
+  const finalTotal = round2(finalTotalNoFreight + freight);
+  const finalCashNoFreight = round2(Math.max(0, cashGross - cashDiscount));
+  const finalCashTotal = round2(Number(proposal.totalWithoutInterest ?? (finalCashNoFreight + freight)));
   const installments = Array.isArray(proposal.installments) ? proposal.installments : [];
   const attachments = Array.isArray(proposal.attachments) ? proposal.attachments : [];
   const items = proposal.items.map((item) => `
@@ -186,11 +193,11 @@ function pdfHtml(proposal) {
 <table>
   <thead><tr><th>Cultivar/Linha</th><th>Padrao</th><th>Embalagem</th><th>Qtde</th><th>Valor/kg c/ juros</th><th>Desc.</th><th>Total c/ juros</th></tr></thead>
   <tbody>${items}</tbody>
-  <tfoot><tr><td colspan="6">Total da Proposta sem Juros</td><td class="num">${money(finalCashTotal)}</td></tr><tr><td colspan="6">Total Final Negociado</td><td class="num">${money(finalTotal)}</td></tr></tfoot>
+  <tfoot><tr><td colspan="6">Total da Proposta sem Juros</td><td class="num">${money(finalCashNoFreight)}</td></tr>${freight > 0 ? `<tr><td colspan="6">Frete</td><td class="num">${money(freight)}</td></tr>` : ""}<tr><td colspan="6">Total Final Negociado</td><td class="num">${money(finalTotal)}</td></tr></tfoot>
 </table>
 <div class="box">
-  <div><b>Condicao de Pagamento</b><br>Forma: ${escapeHtml(proposal.payment)}<br>Parcelas: ${installments.length ? `${installments.length}x de ${money(finalTotal / installments.length)}` : "A combinar"}<br>Juros aplicado: ${Number(financial.interestPct || 2).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}% a.m.<br>Periodo aplicado: ${Math.ceil(Number(financial.paymentHorizonDays || 0) / 30)} mes(es)</div>
-  <div><b>Condicao Comercial</b><br>Validade: ${escapeHtml(proposal.validity || "conforme negociacao comercial")}<br>Frete: conforme combinado</div>
+  <div><b>Condicao de Pagamento</b><br>Forma: ${escapeHtml(proposal.payment)}<br>Parcelas: ${installments.length ? `${installments.length}x` : "A combinar"}<br>Juros aplicado: ${Number(financial.interestPct || 2).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}% a.m.<br>Periodo aplicado: ${Number(financial.paymentHorizonMonths || Math.ceil(Number(financial.paymentHorizonDays || 0) / 30) || 0)} mes(es)</div>
+  <div><b>Condicao Comercial</b><br>Validade: ${escapeHtml(proposal.validity || "conforme negociacao comercial")}<br>Frete: ${freight > 0 ? money(freight) : "conforme combinado"}</div>
 </div>
 ${installments.length ? `<h2>Cronograma de parcelas</h2><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>${installments.map((item) => `<tr><td>${escapeHtml(item.label)}</td><td>${escapeHtml(item.date)}</td><td class="num">${money(item.amount)}</td></tr>`).join("")}</tbody></table>` : ""}
 <div style="margin-top:14px;line-height:1.6"><b>Observacoes:</b><br>1. Proposta sujeita a disponibilidade de estoque no momento do pedido.<br>2. Valores e condicoes conforme negociacao comercial informada.<br>3. Documento gerado para cliente conforme condicoes negociadas.${proposal.notes ? `<br>4. ${escapeHtml(proposal.notes)}` : ""}</div>
@@ -362,10 +369,12 @@ async function handleApi(req, res, pathname) {
     const itemDiscount = proposal.items.reduce((sum, item) => sum + (item.grossTotal - item.total), 0);
     const cashItemDiscount = proposal.items.reduce((sum, item) => sum + (item.grossCashTotal - item.cashTotal), 0);
     const discountPct = Number((proposal.financial && proposal.financial.discountPct) || 0);
-    proposal.discount = itemDiscount + Math.max(0, gross - itemDiscount) * discountPct / 100;
-    proposal.cashDiscount = cashItemDiscount + Math.max(0, cashGross - cashItemDiscount) * discountPct / 100;
-    proposal.total = Math.max(0, gross - proposal.discount);
-    proposal.totalWithoutInterest = Math.max(0, cashGross - proposal.cashDiscount);
+    proposal.discount = round2(itemDiscount + Math.max(0, gross - itemDiscount) * discountPct / 100);
+    proposal.cashDiscount = round2(cashItemDiscount + Math.max(0, cashGross - cashItemDiscount) * discountPct / 100);
+    proposal.freight = (proposal.financial && proposal.financial.freightEnabled) ? round2(Math.max(0, Number(proposal.financial.freightValue || 0))) : 0;
+    proposal.totalWithoutFreight = round2(Math.max(0, gross - proposal.discount));
+    proposal.total = round2(proposal.totalWithoutFreight + proposal.freight);
+    proposal.totalWithoutInterest = round2(Math.max(0, cashGross - proposal.cashDiscount) + proposal.freight);
     const entryPct = Number((proposal.financial && proposal.financial.entryPct) || 0);
     const interest = Number((proposal.financial && proposal.financial.interestPct) || 0) / 100;
     const count = Number((proposal.financial && proposal.financial.installments) || 0);
@@ -378,16 +387,17 @@ async function handleApi(req, res, pathname) {
           amount: Number(item.amount || 0)
         }));
     } else if (count > 0) {
-      const entry = proposal.total * entryPct / 100;
+      const entry = proposal.totalWithoutFreight * entryPct / 100;
       const financed = proposal.total - entry;
       const totalWithInterest = entry + financed * Math.pow(1 + interest, count);
-      const parcelAmount = (totalWithInterest - entry) / count;
+      const parcelAmount = round2((totalWithInterest - entry) / count);
       const baseDateValue = proposal.financial.entryDate || proposal.financial.firstInstallmentDate;
       const baseDate = baseDateValue ? new Date(`${baseDateValue}T00:00:00`) : new Date();
       proposal.installments = Array.from({ length: count }, (_, index) => {
         const date = new Date(baseDate);
         date.setMonth(date.getMonth() + index + 1);
-        return { label: `Parcela ${index + 1}`, date: date.toLocaleDateString("pt-BR"), amount: parcelAmount };
+        const amount = index === count - 1 ? round2(totalWithInterest - entry - parcelAmount * (count - 1)) : parcelAmount;
+        return { label: `Parcela ${index + 1}`, date: date.toLocaleDateString("pt-BR"), amount };
       });
     } else {
       proposal.installments = [];

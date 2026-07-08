@@ -1,6 +1,7 @@
 const state = { user: null, products: [], proposals: [], users: [], clients: [], permissions: [], attachments: [] };
 const $ = (id) => document.getElementById(id);
-const brl = (value) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const round2 = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
+const brl = (value) => round2(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const commissionPolicies = {
   representante: {
@@ -122,44 +123,41 @@ function findProduct(line, cultivar, standard) {
     || state.products[0];
 }
 
-function prazoIndex(days) {
-  const value = Number(days || 0);
-  if (value <= 7) return 0;
-  if (value <= 30) return 1;
-  if (value <= 60) return 2;
-  if (value <= 90) return 3;
-  if (value <= 120) return 4;
-  if (value <= 150) return 5;
-  return 6;
+function prazoIndexFromMonths(months) {
+  return Math.min(Math.max(0, Math.floor(Number(months || 0))), 6);
 }
 
-function priceForDays(product, days) {
-  const index = prazoIndex(days);
-  if (Array.isArray(product?.prazos) && product.prazos[index] !== undefined) return Number(product.prazos[index]);
+function paymentHorizonMonths() {
+  const count = Math.max(0, Math.floor(Number($("financeInstallments")?.value || 0)));
+  return count;
+}
+
+function priceForMonths(product, months) {
+  const cleanMonths = Math.max(0, Math.floor(Number(months || 0)));
+  const index = prazoIndexFromMonths(cleanMonths);
+  if (Array.isArray(product?.prazos) && product.prazos[index] !== undefined) {
+    const listed = Number(product.prazos[index]);
+    if (cleanMonths <= 6) return round2(listed);
+    const monthlyInterest = Number($("financeInterest")?.value || 2) / 100;
+    return round2(listed * Math.pow(1 + monthlyInterest, cleanMonths - 6));
+  }
   const monthlyInterest = Number($("financeInterest")?.value || 2) / 100;
-  return Number(product?.preco || 0) * Math.pow(1 + monthlyInterest, index);
+  return round2(Number(product?.preco || 0) * Math.pow(1 + monthlyInterest, index));
 }
 
 function paymentHorizonDays() {
-  const today = new Date();
-  const entryDate = $("entryDate")?.value ? new Date(`${$("entryDate").value}T00:00:00`) : null;
-  const entryDays = entryDate ? Math.max(0, Math.round((entryDate - today) / 86400000)) : 0;
-  const parcelDays = [...document.querySelectorAll(".installmentDateInput")]
-    .map((input) => input.value ? Math.max(0, Math.round((new Date(`${input.value}T00:00:00`) - today) / 86400000)) : 0);
-  if (parcelDays.length) return Math.max(entryDays, ...parcelDays);
-  const count = Number($("financeInstallments")?.value || 0);
-  return Math.max(entryDays, count > 0 ? count * 30 : 0);
+  return paymentHorizonMonths() * 30;
 }
 
 function updateItemPricesForPayment() {
-  const days = paymentHorizonDays();
+  const months = paymentHorizonMonths();
   $("itemsBody")?.querySelectorAll("tr").forEach((tr) => {
     const selected = state.products[Number(tr.dataset.productIndex)] || findProduct(
       tr.querySelector(".lineSelect").value,
       tr.querySelector(".cultivarSelect").value,
       tr.querySelector(".standardSelect").value
     );
-    tr.querySelector(".priceInput").value = priceForDays(selected, days).toFixed(2);
+    tr.querySelector(".priceInput").value = priceForMonths(selected, months).toFixed(2);
   });
 }
 
@@ -273,7 +271,7 @@ function addItem(product = state.products[0]) {
     const selected = findProduct(lineSelect.value, cultivarSelect.value, standardSelect.value);
     tr.dataset.productIndex = String(state.products.indexOf(selected));
     tr.querySelector(".packageInput").value = selected.apresentacao || "";
-    tr.querySelector(".priceInput").value = priceForDays(selected, paymentHorizonDays()).toFixed(2);
+    tr.querySelector(".priceInput").value = priceForMonths(selected, paymentHorizonMonths()).toFixed(2);
     calculateTotals();
   }
 
@@ -346,11 +344,11 @@ function calculateTotals() {
     const unitPrice = Number(tr.querySelector(".priceInput").value || 0);
     const cashUnitPrice = Number(selected.preco || unitPrice);
     const itemDiscountPct = Number(tr.querySelector(".itemDiscountInput")?.value || 0);
-    const grossLine = qty * unitPrice;
-    const cashGrossLine = qty * cashUnitPrice;
-    const itemDiscount = grossLine * itemDiscountPct / 100;
-    const cashItemDiscount = cashGrossLine * itemDiscountPct / 100;
-    const line = Math.max(0, grossLine - itemDiscount);
+    const grossLine = round2(qty * unitPrice);
+    const cashGrossLine = round2(qty * cashUnitPrice);
+    const itemDiscount = round2(grossLine * itemDiscountPct / 100);
+    const cashItemDiscount = round2(cashGrossLine * itemDiscountPct / 100);
+    const line = round2(Math.max(0, grossLine - itemDiscount));
     tr.querySelector(".totalCell").textContent = brl(line);
     tr.querySelector(".totalCell").dataset.total = String(line);
     itemCount += qty;
@@ -360,19 +358,26 @@ function calculateTotals() {
     cashItemDiscountTotal += cashItemDiscount;
   });
   const discountPct = Number($("discountPct")?.value || 0);
-  const afterItemDiscount = Math.max(0, grossTotal - itemDiscountTotal);
-  const cashAfterItemDiscount = Math.max(0, cashGrossTotal - cashItemDiscountTotal);
-  const globalDiscountValue = afterItemDiscount * discountPct / 100;
-  const cashGlobalDiscountValue = cashAfterItemDiscount * discountPct / 100;
-  const discountValue = itemDiscountTotal + globalDiscountValue;
-  const cashDiscountValue = cashItemDiscountTotal + cashGlobalDiscountValue;
-  const finalTotal = Math.max(0, grossTotal - discountValue);
-  const cashFinalTotal = Math.max(0, cashGrossTotal - cashDiscountValue);
+  const freight = $("freightEnabled")?.checked ? round2(Math.max(0, Number($("freightValue")?.value || 0))) : 0;
+  grossTotal = round2(grossTotal);
+  cashGrossTotal = round2(cashGrossTotal);
+  itemDiscountTotal = round2(itemDiscountTotal);
+  cashItemDiscountTotal = round2(cashItemDiscountTotal);
+  const afterItemDiscount = round2(Math.max(0, grossTotal - itemDiscountTotal));
+  const cashAfterItemDiscount = round2(Math.max(0, cashGrossTotal - cashItemDiscountTotal));
+  const globalDiscountValue = round2(afterItemDiscount * discountPct / 100);
+  const cashGlobalDiscountValue = round2(cashAfterItemDiscount * discountPct / 100);
+  const discountValue = round2(itemDiscountTotal + globalDiscountValue);
+  const cashDiscountValue = round2(cashItemDiscountTotal + cashGlobalDiscountValue);
+  const finalTotalNoFreight = round2(Math.max(0, grossTotal - discountValue));
+  const cashFinalTotalNoFreight = round2(Math.max(0, cashGrossTotal - cashDiscountValue));
+  const finalTotal = round2(finalTotalNoFreight + freight);
+  const cashFinalTotal = round2(cashFinalTotalNoFreight + freight);
   const totalDiscountPct = grossTotal > 0 ? discountValue / grossTotal * 100 : 0;
   const commissionPct = getCommissionTotals(totalDiscountPct).finalPct / 100;
-  const commission = finalTotal * commissionPct;
-  state.currentTotals = { grossTotal, cashGrossTotal, discountValue, cashDiscountValue, finalTotal, cashFinalTotal, totalDiscountPct, horizonDays: paymentHorizonDays() };
-  const pairs = [["proposalTotal", finalTotal], ["kpiGross", cashGrossTotal], ["kpiDiscount", discountValue], ["kpiFinal", finalTotal], ["kpiCommission", commission], ["financeGross", cashGrossTotal], ["financeDiscount", discountValue], ["financeFinal", finalTotal]];
+  const commission = round2(finalTotalNoFreight * commissionPct);
+  state.currentTotals = { grossTotal, cashGrossTotal, discountValue, cashDiscountValue, finalTotal, finalTotalNoFreight, cashFinalTotal, cashFinalTotalNoFreight, freight, totalDiscountPct, horizonDays: paymentHorizonDays(), horizonMonths: paymentHorizonMonths() };
+  const pairs = [["proposalTotal", finalTotal], ["kpiGross", round2(cashGrossTotal + freight)], ["kpiDiscount", discountValue], ["kpiFinal", finalTotal], ["kpiCommission", commission], ["financeGross", round2(cashGrossTotal + freight)], ["financeDiscount", discountValue], ["financeFinal", finalTotal]];
   pairs.forEach(([id, value]) => { if ($(id)) $(id).textContent = brl(value); });
   if ($("kpiItems")) $("kpiItems").textContent = `${itemCount} itens`;
   if ($("kpiFinalItems")) $("kpiFinalItems").textContent = `${itemCount} itens`;
@@ -381,8 +386,9 @@ function calculateTotals() {
   if ($("directorSummary")) {
     $("directorSummary").innerHTML = `
       <div class="summaryRow"><span>Modelo</span><b>${getCommissionPolicy().label}</b></div>
-      <div class="summaryRow"><span>Total sem juros</span><b>${brl(cashFinalTotal)}</b></div>
+      <div class="summaryRow"><span>Total sem juros</span><b>${brl(cashFinalTotalNoFreight)}</b></div>
       <div class="summaryRow"><span>Desconto</span><b>${brl(discountValue)}</b></div>
+      ${freight > 0 ? `<div class="summaryRow"><span>Frete</span><b>${brl(freight)}</b></div>` : ""}
       <div class="summaryRow final"><span>Total final negociado</span><b>${brl(finalTotal)}</b></div>
       <div class="summaryRow"><span>Comissao Final</span><b>${brl(commission)}</b></div>
       <div class="summaryRow"><span>Margem</span><b>${Number($("marginPct")?.value || 15).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%</b></div>`;
@@ -573,15 +579,19 @@ async function addAttachments(files) {
 }
 
 function collectFinancial() {
+  const freight = $("freightEnabled")?.checked ? round2(Math.max(0, Number($("freightValue")?.value || 0))) : 0;
   return {
     discountPct: Number($("discountPct")?.value || 0),
     entryPct: Number($("financeEntry")?.value || 0),
     entryDate: $("entryDate")?.value || "",
     interestPct: Number($("financeInterest")?.value || 0),
     installments: Number($("financeInstallments")?.value || 0),
+    paymentHorizonMonths: paymentHorizonMonths(),
     paymentHorizonDays: paymentHorizonDays(),
     totalWithoutInterest: state.currentTotals?.cashFinalTotal || 0,
     totalWithInterest: state.currentTotals?.finalTotal || 0,
+    freightEnabled: $("freightEnabled")?.checked || false,
+    freightValue: freight,
     commissionBasePct: Number($("commissionBase")?.value || 14.18),
     commissionFinalPct: Number($("commissionFinal")?.value || 14.18),
     marginPct: Number($("marginPct")?.value || 15),
@@ -590,7 +600,7 @@ function collectFinancial() {
     installmentSchedule: [...document.querySelectorAll(".installmentRow")].map((row, index) => ({
       label: `Parcela ${index + 1}`,
       date: row.querySelector(".installmentDateInput")?.value || "",
-      amount: Number(row.querySelector(".installmentAmountInput")?.value || 0)
+      amount: round2(Number(row.querySelector(".installmentAmountInput")?.value || 0))
     }))
   };
 }
@@ -600,8 +610,9 @@ function calcFinance(finalTotal = null) {
   const base = finalTotal ?? currentProposalTotal();
   const entryPct = Number($("financeEntry")?.value || 0);
   const rawInstallments = Number($("financeInstallments")?.value || 0);
-  const entry = base * entryPct / 100;
-  const parcelTotal = Math.max(0, base - entry);
+  const baseWithoutFreight = state.currentTotals?.finalTotalNoFreight ?? base;
+  const entry = round2(baseWithoutFreight * entryPct / 100);
+  const parcelTotal = round2(Math.max(0, base - entry));
   const cashTotal = state.currentTotals?.cashFinalTotal || base;
   if ($("entryDateLabel")) $("entryDateLabel").classList.toggle("hidden", entryPct <= 0);
   $("financeResult").innerHTML = `<b>Total sem juros<br>${brl(cashTotal)}</b><b>Entrada<br>${brl(entry)}</b><b>Valor parcelado<br>${brl(parcelTotal)}</b>`;
@@ -619,12 +630,13 @@ function renderInstallments(amount, count) {
     return;
   }
   const baseDate = $("entryDate")?.value ? new Date(`${$("entryDate").value}T00:00:00`) : new Date();
-  const defaultAmount = count > 0 ? amount / count : 0;
+  const defaultAmount = count > 0 ? round2(amount / count) : 0;
   const rows = Array.from({ length: count }, (_, index) => {
     const date = new Date(baseDate);
     date.setMonth(date.getMonth() + index + 1);
     const isoDate = previous[index]?.date || date.toISOString().slice(0, 10);
-    const value = previous[index]?.amount || defaultAmount.toFixed(2);
+    const adjustedLast = index === count - 1 ? round2(amount - defaultAmount * (count - 1)) : defaultAmount;
+    const value = previous[index]?.amount || adjustedLast.toFixed(2);
     return `<tr class="installmentRow">
       <td>Parcela ${index + 1}</td>
       <td><input class="installmentDateInput" type="date" value="${isoDate}"></td>
@@ -722,7 +734,7 @@ if ($("attachmentInput")) $("attachmentInput").addEventListener("change", (event
 ].forEach(([id, mask]) => {
   if ($(id)) $(id).addEventListener("input", () => { $(id).value = mask($(id).value); });
 });
-["payment", "financeEntry", "entryDate", "financeInterest", "financeInstallments", "discountPct", "marginPct", "saleModel"].forEach((id) => {
+["payment", "financeEntry", "entryDate", "financeInterest", "financeInstallments", "discountPct", "marginPct", "saleModel", "freightEnabled", "freightValue"].forEach((id) => {
   if ($(id)) $(id).addEventListener("input", calculateTotals);
   if ($(id)) $(id).addEventListener("change", calculateTotals);
 });

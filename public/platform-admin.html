@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Riza Agro | Plataforma Comercial</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <section id="loginView" class="loginShell">
+    <div class="loginShowcase">
+      <img class="loginHeroLogo" src="./assets/logo-riza-agro.jpeg" alt="Riza Agro">
+      <div class="loginTagline">Solucoes que geram resultados</div>
+      <p class="loginIntro">Plataforma comercial completa para propostas, simulacoes e gestao de resultados.</p>
+      <div class="loginBenefits">
+        <div><span>I</span><b>Inovacao</b><small>Tecnologia e inteligencia em cada detalhe.</small></div>
+        <div><span>P</span><b>Parceria</b><small>Relacionamentos solidos que constroem o futuro.</small></div>
+        <div><span>R</span><b>Resultados</b><small>Foco em performance e rentabilidade.</small></div>
+        <div><span>S</span><b>Seguranca</b><small>Transparencia e controle em todo o processo.</small></div>
+      </div>
+      <div class="seedStrip">
+        <small>Nossas sementes de pastagem</small>
+        <div class="seedGrid">
+          <div><i></i><b>Marandu</b><span>Revestida<br>Pura / Tratada</span></div>
+          <div><i></i><b>Miyagui</b><span>Revestida<br>Pura / Tratada</span></div>
+          <div><i></i><b>Piata</b><span>Revestida<br>Pura / Tratada</span></div>
+          <div><i></i><b>Ruzizienses</b><span>Revestida<br>Pura / Tratada</span></div>
+          <div><i></i><b>Marandu</b><span>BRS Paiaguas<br>Pura / Tratada</span></div>
+        </div>
+      </div>
+      <div class="trustBand"><b>Juntos, plantamos confianca<br>e <span>colhemos sucesso.</span></b><p>Da semente ao campo, excelencia que gera resultados.</p></div>
+      <div class="loginModules">
+        <div><span>C</span><b>Comercial</b><small>Propostas e negociacoes</small></div>
+        <div><span>S</span><b>Simulador</b><small>Calculos rapidos</small></div>
+        <div><span>CL</span><b>Clientes</b><small>Relacionamento e historico</small></div>
+        <div><span>R</span><b>Relatorios</b><small>Performance e indicadores</small></div>
+      </div>
+    </div>
+    <form id="loginForm" class="loginCard">
+      <div class="loginLeaf"></div>
+      <strong>Bem-vindo!</strong>
+      <h1>Acesse sua conta</h1>
+      <p>Gerencie propostas, simulacoes e resultados com agilidade e seguranca.</p>
+      <label>E-mail</label>
+      <input id="loginEmail" type="email" value="" placeholder="Usuario" autocomplete="username">
+      <label>Senha</label>
+      <input id="loginPassword" type="password" value="" placeholder="Senha" autocomplete="current-password">
+      <div class="loginOptions"><label class="remember"><input type="checkbox" checked> Lembrar meu acesso</label><a>Esqueceu sua senha?</a></div>
+      <button type="submit">Entrar <span>></span></button>
+      <div class="loginDivider"><span>ou</span></div>
+      <button type="button" class="internalAccess">Acesso interno</button>
+      <div class="secureBox"><span></span><b>Ambiente seguro</b><small>Seus dados protegidos com tecnologia de ponta.</small></div>
+      <small>admin@rizaagro.test | senha 123456</small>
+      <div id="fileModeHelp" class="fileHelp hidden">Abra pelo arquivo ABRIR_SISTEMA_RIZA.bat ou use http://localhost:8787/</div>
+      <div id="loginError" class="error"></div>
+    </form>
+  </section>
+
+  <section id="appView" class="appShell hidden">
+    <aside class="sidebar">
+      <div class="sideLogo"><img src="./assets/logo-riza-agro.jpeg" alt="Riza Agro"></div>
+      <nav id="navList"></nav>
+      <div class="sideFooter">
+        <small>Sessao ativa</small>
+        <b id="userName">Usuario</b>
+        <span id="userRole">Perfil</span>
+        <button id="logoutBtn">Sair</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="brandCard"><img src="./assets/logo-riza-agro.jpeg" alt="Riza Agro"></div>
+        <div>
+          <h1 id="pageTitle">SIMULADOR DE PROPOSTA COMERCIAL</h1>
+        </div>
+        <div class="topActions">
+          <button id="pdfTopBtn" class="linkBtn">PROPOSTA (PDF)</button>
+          <button id="orderTopBtn" class="linkBtn">PEDIDO DE COMPRA</button>
+          <button id="emailTopBtn" class="linkBtn">ENVIAR E-MAIL</button>
+          <button id="whatsTopBtn" class="linkBtn">ENVIAR WHATSAPP</button>
+          <button id="saveProposalBtn" class="timeBtn">SALVAR</button>
+        </div>
+      </header>
+
+      <section id="proposal" class="page">
+        <div class="kpis">
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-money"></div><div><small>Valor Total</small><b id="kpiGross">R$ 0,00</b><span id="kpiItems">0 itens</span></div></div>
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-discount"></div><div><small>Desconto</small><b id="kpiDiscount">R$ 0,00</b><span>0,00%</span></div></div>
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-final"></div><div><small>Valor Final</small><b id="kpiFinal">R$ 0,00</b><span id="kpiFinalItems">0 itens</span></div></div>
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-commission"></div><div><small>Comissao</small><b id="kpiCommission">R$ 0,00</b><span>14,18%</span></div></div>
+        </div>
+
+        <div class="simGrid">
+          <div class="leftStack">
+            <div class="panel"><h2>DADOS DA PROPOSTA</h2><div class="formGrid proposalGrid">
+              <label>Cliente<input id="customerName" placeholder="Nome do cliente"></label>
+              <label>Fazenda / Empresa<input id="customerCompany" placeholder="Fazenda Exemplo"></label>
+              <label>CPF/CNPJ<input id="customerDocument" placeholder="CPF ou CNPJ"></label>
+              <label>Inscricao Estadual<input id="customerStateRegistration" placeholder="Inscricao Estadual"></label>
+              <label>Endereco<input id="customerAddress" placeholder="Endereco completo"></label>
+              <label>CEP<input id="customerZip" placeholder="00000-000"></label>
+              <label>Contato<input id="customerPhone" placeholder="(00) 00000-0000"></label>
+              <label>E-mail<input id="customerEmail" placeholder="email@exemplo.com"></label>
+              <label>Cidade / UF<input id="customerCity" placeholder="Cidade / UF"></label>
+              <label>Data<input id="proposalDate" type="date"></label>
+              <label class="wide">Documentos anexos<input id="attachmentInput" type="file" multiple></label>
+              <div id="attachmentList" class="attachmentList wide"></div>
+            </div></div>
+
+            <div class="panel">
+              <div class="panelActions"><h2>ITENS DA PROPOSTA</h2><button id="addItemBtn" class="secondaryBtn">Adicionar item</button></div>
+              <div class="tableWrap"><table><thead><tr><th>Linha</th><th>Cultivar</th><th>Padrao</th><th>Embalagem</th><th>Qtde</th><th>Unid</th><th>Preco Unit.</th><th>Desc. %</th><th>Total</th><th>Acao</th></tr></thead><tbody id="itemsBody"></tbody></table></div>
+              <div class="totalBar"><span>Total Geral</span><b id="proposalTotal">R$ 0,00</b></div>
+              <div id="formError" class="error"></div>
+            </div>
+          </div>
+
+          <div class="rightStack">
+            <div class="panel financePanel"><h2>SIMULADOR FINANCEIRO</h2><div class="formGrid financeGrid">
+              <label>Modelo de Venda / Canal<select id="saleModel"><option value="representante">Representante Comercial - 14,18%</option><option value="rtv">RTV - 7,18%</option><option value="sem_rep_rtv">Sem RTV / Representante - 6,68%</option><option value="vendas_diretas">Vendas Diretas - 2,01%</option></select></label>
+              <label>Comissao Base (%)<input id="commissionBase" type="number" value="14.18" step="0.01"></label>
+              <label>Comissao Final (%)<input id="commissionFinal" type="number" value="14.18" step="0.01"></label>
+              <label>Margem Comercial (%)<input id="marginPct" type="number" value="15.00" step="0.01"></label>
+              <label>Desconto Geral (%)<input id="discountPct" type="number" value="0" step="0.01"></label>
+            </div>
+            <div class="financeTotals">
+              <div><small>Valor Total Bruto</small><b id="financeGross">R$ 0,00</b></div>
+              <div><small>Desconto por Cultivar</small><b id="financeDiscount">R$ 0,00</b></div>
+              <div><small>Valor Final</small><b id="financeFinal">R$ 0,00</b></div>
+            </div>
+            <div class="formGrid financeGrid">
+              <label>Forma / Condicao<select id="payment"><option>A vista</option><option selected>Parcelado</option><option>Safra / Personalizado</option><option>A combinar</option></select></label>
+              <label>Entrada (%)<input id="financeEntry" type="number" value="0" min="0" max="100" step="0.01"></label>
+              <label id="entryDateLabel" class="hidden">Data da entrada<input id="entryDate" type="date"></label>
+              <label>Juros ao mes (%)<input id="financeInterest" type="number" value="2" min="0" step="0.01"></label>
+              <label>Numero de parcelas<input id="financeInstallments" type="number" value="0" min="0" step="1"></label>
+              <label class="freightLabel"><span><input id="freightEnabled" type="checkbox"> Incluir frete</span><input id="freightValue" type="number" value="0" min="0" step="0.01"></label>
+              <label class="wide">Observacao de pagamento<input id="notes" value="Ex.: 90 dias direto, entrada a combinar, safra..."></label>
+              <label>Validade<input id="validity" value="7 dias"></label>
+            </div>
+            <div class="financeResult" id="financeResult"></div>
+            <div class="installmentsBox" id="installmentsBox"></div>
+            <div class="commissionBox">
+              <h3>POLITICA DE COMISSIONAMENTO</h3>
+              <div class="commissionGrid"><div><small>Canal</small><b id="commissionChannel">Representante Comercial</b></div><div><small>Comissao Base</small><b id="commissionBaseBox">14,18%</b></div><div><small>Comissao apos negociacao</small><b id="commissionFinalBox">14,18%</b></div></div>
+              <table><thead><tr><th>Participante</th><th>% Politica</th><th>% Final</th><th>Valor Comissao</th></tr></thead><tbody id="commissionRows"></tbody></table>
+            </div></div>
+          </div>
+        </div>
+
+        <div class="bottomProducts">
+          <div class="panel"><div class="panelActions"><h2>+ RIZA+</h2><button class="miniBtn" data-page-jump="rizaPlus">Ver todos Riza+</button></div><div class="tableWrap"><table><thead><tr><th>Produto</th><th>Padrao</th><th>Embalagem</th><th>Preco Unit.</th><th>Acao</th></tr></thead><tbody id="rizaPlusMini"></tbody></table></div></div>
+          <div class="panel"><div class="panelActions"><h2>RIZA VIRTUS</h2><button class="miniBtn" data-page-jump="virtus">Ver todos Riza Virtus</button></div><div class="tableWrap"><table><thead><tr><th>Produto</th><th>Padrao</th><th>Embalagem</th><th>Preco Unit.</th><th>Acao</th></tr></thead><tbody id="virtusMini"></tbody></table></div></div>
+          <div class="panel summaryPanel"><h2>Resumo Diretoria</h2><div id="directorSummary"></div><button id="pdfBottomBtn" class="greenStrip">Gerar Proposta em PDF</button></div>
+        </div>
+      </section>
+
+      <section id="dashboard" class="page active">
+        <div class="dashboardHero">
+          <div>
+            <small>Visao geral comercial</small>
+            <h2>Dashboard Diretoria Comercial</h2>
+            <p>Resumo das propostas, clientes, valores gerados e atividade recente da equipe.</p>
+          </div>
+          <button class="primaryBtn" data-page-jump="proposal">Nova proposta</button>
+        </div>
+        <div class="kpis">
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-proposal"></div><div><small>Propostas geradas</small><b id="dashProposals">0</b><span>Historico centralizado</span></div></div>
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-money"></div><div><small>Valor emitido</small><b id="dashRevenue">R$ 0,00</b><span>Total em propostas</span></div></div>
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-client"></div><div><small>Clientes</small><b id="dashClients">0</b><span>Clientes com proposta</span></div></div>
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-ticket"></div><div><small>Ticket medio</small><b id="dashTicket">R$ 0,00</b><span>Media por proposta</span></div></div>
+        </div>
+        <div class="grid twoWide">
+          <div class="panel"><h2>Ultimas propostas</h2><div id="dashboardLatest" class="panelBody"></div></div>
+          <div class="panel"><h2>Clientes recentes</h2><div id="dashboardClients" class="panelBody"></div></div>
+        </div>
+      </section>
+
+      <section id="rizaPlus" class="page"><div class="panel"><h2>Riza+</h2><div id="rizaPlusGrid" class="productGrid"></div></div></section>
+      <section id="virtus" class="page"><div class="panel"><h2>Riza Virtus</h2><div id="virtusGrid" class="productGrid"></div></div></section>
+      <section id="finance" class="page"><div class="panel"><h2>Simulador financeiro</h2><div class="emptyState">O simulador financeiro oficial esta dentro de Proposta Comercial, integrado aos itens, desconto, parcelas e comissoes.</div><button class="primaryBtn inline" data-page-jump="proposal">Abrir Proposta Comercial</button></div></section>
+
+      <section id="clients" class="page"><div class="panel"><h2>Clientes</h2><div id="clientsList" class="cards"></div></div></section>
+      <section id="products" class="page"><div class="panel"><h2>Produtos</h2><div class="tableWrap"><table><thead><tr><th>Linha</th><th>Produto</th><th>Tecnologia</th><th>Apresentacao</th><th>Preco</th></tr></thead><tbody id="productsBody"></tbody></table></div></div></section>
+      <section id="history" class="page"><div class="panel"><h2>Historico centralizado</h2><div class="tableWrap"><table><thead><tr><th>Numero</th><th>Cliente</th><th>Total</th><th>Responsavel</th><th>Data</th><th>Acoes</th></tr></thead><tbody id="historyBody"></tbody></table></div><div id="emptyHistory" class="emptyState">Nenhuma proposta salva ainda.</div></div></section>
+      <section id="reports" class="page"><div class="panel"><h2>Relatorios</h2><div id="reportsGrid" class="cards"></div></div></section>
+
+      <section id="users" class="page">
+        <div class="grid twoWide">
+          <div class="panel"><h2>Criar usuario</h2><div class="formGrid one">
+            <label>Nome<input id="newUserName"></label>
+            <label>E-mail<input id="newUserEmail"></label>
+            <label>Senha<input id="newUserPassword" value="123456"></label>
+            <label>Perfil<input id="newUserRole" value="Consultor"></label>
+          </div><div id="newUserPerms" class="permGrid"></div><button id="createUserBtn" class="primaryBtn inline">Criar usuario</button><div id="userError" class="error"></div></div>
+          <div class="panel"><h2>Usuarios e permissoes</h2><div id="usersList" class="usersList"></div></div>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <script src="./app.js"></script>
+</body>
+</html>
+

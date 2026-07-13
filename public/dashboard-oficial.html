@@ -10,9 +10,22 @@
 body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#063d21;color:#102016}
 .app{display:grid;grid-template-columns:210px 1fr;min-height:100vh;background:linear-gradient(135deg,#063d21,#082b19)}
 .sidebar{background:linear-gradient(180deg,#073b20,#042412);color:white;padding:14px 10px;display:flex;flex-direction:column;gap:8px}
-.sideItem{border:0;background:transparent;color:white;display:flex;gap:10px;align-items:center;width:100%;padding:14px 15px;border-radius:8px;font-weight:900;font-size:13px;cursor:pointer;text-align:left}
-.sideItem.active,.sideItem:hover{background:linear-gradient(90deg,var(--orange),#ff9a2b)}
-.sideIcon{font-size:20px;width:24px;text-align:center}
+.sideItem{border:0;background:transparent;color:white;display:flex;gap:12px;align-items:center;width:100%;padding:13px 13px;border-radius:10px;font-weight:900;font-size:13px;cursor:pointer;text-align:left;transition:.18s ease}
+.sideItem.active,.sideItem:hover{background:linear-gradient(90deg,var(--orange),#ff9a2b);box-shadow:0 10px 24px rgba(255,122,0,.26),inset 0 1px 0 rgba(255,255,255,.35)}
+.sideIcon{position:relative;width:34px;height:34px;min-width:34px;border-radius:12px;display:grid;place-items:center;background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.95),rgba(255,255,255,.2) 24%,transparent 25%),linear-gradient(145deg,#ff9f2f,#ff7900 52%,#a33a00);border:1px solid rgba(255,255,255,.36);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -9px 15px rgba(95,33,0,.32),0 12px 20px rgba(0,0,0,.18)}
+.sideItem.active .sideIcon,.sideItem:hover .sideIcon{background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.95),rgba(255,255,255,.18) 24%,transparent 25%),linear-gradient(145deg,#0d713a,#063d21);box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -9px 15px rgba(0,0,0,.28),0 12px 20px rgba(6,61,33,.28)}
+.sideIcon:before,.sideIcon:after,.kpiIcon:before,.kpiIcon:after{content:"";position:absolute}
+.iconDash:before{width:15px;height:13px;border:3px solid #fff;border-top:0;bottom:8px;border-radius:2px}.iconDash:after{width:16px;height:16px;border-left:3px solid #fff;border-top:3px solid #fff;transform:rotate(45deg);top:8px}
+.iconProposal:before{width:16px;height:20px;border:3px solid #fff;border-radius:3px}.iconProposal:after{width:8px;height:3px;background:#fff;left:13px;top:11px;box-shadow:0 7px 0 #fff,0 14px 0 #fff}
+.iconPlus:before,.iconPlus:after{background:#fff;border-radius:2px}.iconPlus:before{width:18px;height:4px}.iconPlus:after{width:4px;height:18px}
+.iconLeaf:before{width:18px;height:22px;border:3px solid #fff;border-radius:70% 0 70% 70%;transform:rotate(45deg)}.iconLeaf:after{width:3px;height:18px;background:#fff;transform:rotate(45deg)}
+.iconFinance:before{width:18px;height:20px;border:3px solid #fff;border-radius:3px}.iconFinance:after{width:4px;height:8px;background:#fff;bottom:9px;left:10px;box-shadow:7px -4px 0 #fff,14px -9px 0 #fff}
+.iconClients:before{width:10px;height:10px;background:#fff;border-radius:50%;top:8px;left:11px;box-shadow:10px 3px 0 -1px #fff}.iconClients:after{width:22px;height:10px;border-radius:12px 12px 4px 4px;background:#fff;bottom:8px;left:6px}
+.iconProducts:before{width:18px;height:18px;border:3px solid #fff;border-radius:4px;transform:rotate(45deg)}
+.iconHistory:before{width:18px;height:18px;border:3px solid #fff;border-right-color:transparent;border-radius:50%}.iconHistory:after{width:0;height:0;border-left:7px solid #fff;border-top:5px solid transparent;border-bottom:5px solid transparent;right:6px;top:8px}
+.iconReports:before{width:4px;height:12px;background:#fff;bottom:8px;left:9px;box-shadow:8px -5px 0 #fff,16px -10px 0 #fff}.iconReports:after{width:23px;height:3px;background:#fff;bottom:6px;left:5px}
+.iconSettings:before{width:18px;height:18px;border:4px solid #fff;border-radius:50%}.iconSettings:after{width:6px;height:6px;background:#fff;border-radius:50%}
+.iconHelp:before{content:"?";position:static;color:#fff;font-size:22px;font-weight:1000;line-height:1}
 .version{margin-top:auto;border:1px solid rgba(255,255,255,.35);border-radius:10px;padding:14px;font-size:12px}
 .main{background:white;min-width:0}
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;background:#fff;border-bottom:4px solid var(--orange);padding:10px 22px;min-height:106px}
@@ -31,7 +44,11 @@ body{margin:0;font-family:Segoe UI,Arial,sans-serif;background:#063d21;color:#10
 .page{display:none}.page.active{display:block}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:18px}
 .kpi{background:white;border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;align-items:center;gap:15px;box-shadow:0 8px 20px rgba(0,0,0,.04);min-height:105px}
-.kpiIcon{font-size:38px;color:#063d21}
+.kpiIcon{position:relative;width:58px;height:58px;min-width:58px;border-radius:18px;display:grid;place-items:center;color:white;background:radial-gradient(circle at 30% 22%,rgba(255,255,255,.95),rgba(255,255,255,.2) 24%,transparent 25%),linear-gradient(145deg,#ff9f2f,#ff7900 52%,#a33a00);border:1px solid rgba(255,255,255,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.52),inset 0 -10px 16px rgba(95,33,0,.34),0 14px 28px rgba(255,122,0,.22)}
+.kpiMoney:after{content:"$";position:static;color:#fff;font-size:36px;font-weight:800;line-height:1;text-shadow:0 2px 0 rgba(0,0,0,.22)}
+.kpiDiscount:before{width:34px;height:5px;background:#fff;transform:rotate(-45deg);border-radius:5px}.kpiDiscount:after{width:9px;height:9px;border:3px solid #fff;border-radius:50%;left:13px;top:14px;box-shadow:19px 19px 0 -3px transparent,19px 19px 0 0 #fff}
+.kpiFinal:before{width:25px;height:25px;border:4px solid #fff;border-radius:5px}.kpiFinal:after{width:10px;height:10px;background:#fff;border-radius:2px}
+.kpiCommission:before{width:25px;height:25px;border:4px solid #fff;border-left-color:transparent;border-radius:50%}.kpiCommission:after{width:17px;height:4px;background:#fff;right:10px;top:16px;transform:rotate(35deg);border-radius:4px}
 .kpi small{font-weight:900;font-size:11px;color:#14351f;text-transform:uppercase}
 .kpi b{display:block;font-size:21px;margin:5px 0;color:#062d19}
 .kpi span{font-size:12px}
@@ -111,17 +128,17 @@ input,select{width:100%;padding:11px;border:1px solid #cfd6cf;border-radius:5px;
 <body>
 <div class="app">
 <aside class="sidebar">
-  <button class="sideItem active" data-page="dashboard"><span class="sideIcon">⌂</span> DASHBOARD</button>
-  <button class="sideItem" data-page="proposta"><span class="sideIcon">▤</span> PROPOSTA COMERCIAL</button>
-  <button class="sideItem" data-page="rizaPlus"><span class="sideIcon">✚</span> RIZA+</button>
-  <button class="sideItem" data-page="virtus"><span class="sideIcon">🌿</span> RIZA VIRTUS</button>
-  <button class="sideItem" data-page="financeiro"><span class="sideIcon">▦</span> SIMULADOR FINANCEIRO</button>
-  <button class="sideItem" data-page="clientes"><span class="sideIcon">♟</span> CLIENTES</button>
-  <button class="sideItem" data-page="produtos"><span class="sideIcon">◼</span> PRODUTOS</button>
-  <button class="sideItem" data-page="historico"><span class="sideIcon">↻</span> HISTÓRICO</button>
-  <button class="sideItem" data-page="relatorios"><span class="sideIcon">▥</span> RELATÓRIOS</button>
-  <button class="sideItem" data-page="config"><span class="sideIcon">⚙</span> CONFIGURAÇÕES</button>
-  <button class="sideItem" data-page="ajuda"><span class="sideIcon">?</span> AJUDA</button>
+  <button class="sideItem active" data-page="dashboard"><span class="sideIcon iconDash"></span> DASHBOARD</button>
+  <button class="sideItem" data-page="proposta"><span class="sideIcon iconProposal"></span> PROPOSTA COMERCIAL</button>
+  <button class="sideItem" data-page="rizaPlus"><span class="sideIcon iconPlus"></span> RIZA+</button>
+  <button class="sideItem" data-page="virtus"><span class="sideIcon iconLeaf"></span> RIZA VIRTUS</button>
+  <button class="sideItem" data-page="financeiro"><span class="sideIcon iconFinance"></span> SIMULADOR FINANCEIRO</button>
+  <button class="sideItem" data-page="clientes"><span class="sideIcon iconClients"></span> CLIENTES</button>
+  <button class="sideItem" data-page="produtos"><span class="sideIcon iconProducts"></span> PRODUTOS</button>
+  <button class="sideItem" data-page="historico"><span class="sideIcon iconHistory"></span> HISTÓRICO</button>
+  <button class="sideItem" data-page="relatorios"><span class="sideIcon iconReports"></span> RELATÓRIOS</button>
+  <button class="sideItem" data-page="config"><span class="sideIcon iconSettings"></span> CONFIGURAÇÕES</button>
+  <button class="sideItem" data-page="ajuda"><span class="sideIcon iconHelp"></span> AJUDA</button>
   <div class="version"><b>Riza Agro</b><br>Soluções em Pastagens<hr style="border-color:rgba(255,255,255,.25)">Versão 2.0.0</div>
 </aside>
 
@@ -141,10 +158,10 @@ input,select{width:100%;padding:11px;border:1px solid #cfd6cf;border-radius:5px;
 <section class="content">
   <div id="dashboard" class="page active">
     <div class="kpis">
-      <div class="kpi"><div class="kpiIcon">$</div><div><small>Valor Total</small><b id="kValorTotal">R$ 0,00</b><span id="kItens">0 itens</span></div></div>
-      <div class="kpi"><div class="kpiIcon">◆</div><div><small>Desconto</small><b id="kDesconto">R$ 0,00</b><span id="kDescPct">0,00%</span></div></div>
-      <div class="kpi"><div class="kpiIcon">▣</div><div><small>Valor Final</small><b id="kFinal">R$ 0,00</b><span id="kItens2">0 itens</span></div></div>
-      <div class="kpi"><div class="kpiIcon">↗</div><div><small>Comissão</small><b id="kComissao">R$ 0,00</b><span id="kComissaoPct">0,00%</span></div></div>
+      <div class="kpi"><div class="kpiIcon kpiMoney"></div><div><small>Valor Total</small><b id="kValorTotal">R$ 0,00</b><span id="kItens">0 itens</span></div></div>
+      <div class="kpi"><div class="kpiIcon kpiDiscount"></div><div><small>Desconto</small><b id="kDesconto">R$ 0,00</b><span id="kDescPct">0,00%</span></div></div>
+      <div class="kpi"><div class="kpiIcon kpiFinal"></div><div><small>Valor Final</small><b id="kFinal">R$ 0,00</b><span id="kItens2">0 itens</span></div></div>
+      <div class="kpi"><div class="kpiIcon kpiCommission"></div><div><small>Comissão</small><b id="kComissao">R$ 0,00</b><span id="kComissaoPct">0,00%</span></div></div>
     </div>
     <div class="grid2">
       <div>

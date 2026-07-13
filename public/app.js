@@ -1,4 +1,4 @@
-const state = { user: null, products: [], proposals: [], users: [], clients: [], permissions: [], attachments: [] };
+const state = { user: null, products: [], proposals: [], users: [], clients: [], permissions: [], activityLogs: [], attachments: [] };
 const $ = (id) => document.getElementById(id);
 const round2 = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 const brl = (value) => round2(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -223,7 +223,7 @@ function renderProducts() {
 function renderProductCards(target, products) {
   if (!$(target)) return;
   $(target).innerHTML = products.map((product) => `
-    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} Ã¢â‚¬Â¢ ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
+    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} â€¢ ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
   ).join("");
 }
 
@@ -466,15 +466,48 @@ function renderUsers() {
       const data = await api(`/api/users/${card.dataset.user}`, { method: "PATCH", body: JSON.stringify(payload) });
       state.users = data.users;
       renderUsers();
+      refreshActivity();
     });
     card.querySelector(".deleteUserBtn").addEventListener("click", async () => {
       if (!confirm("Excluir este usuario?")) return;
       const data = await api(`/api/users/${card.dataset.user}`, { method: "DELETE" });
       state.users = data.users;
       renderUsers();
+      refreshActivity();
     });
   });
 }
+
+function renderActivity() {
+  if (!$("activityList") || !can("users")) return;
+  const labels = {
+    login: "Entrou no sistema",
+    logout: "Saiu do sistema",
+    abriu_dashboard: "Abriu o dashboard oficial",
+    abriu_admin: "Abriu usuarios/permissoes",
+    usuario_criado: "Criou usuario",
+    usuario_alterado: "Alterou usuario",
+    usuario_excluido: "Excluiu usuario",
+    proposta_salva: "Salvou proposta",
+    proposta_excluida: "Excluiu proposta"
+  };
+  $("activityList").innerHTML = (state.activityLogs || []).map((item) => {
+    const detail = item.details || {};
+    const extra = detail.codigo || detail.usuario || detail.cliente || detail.email || detail.pagina || "";
+    return `<div class="activityItem">
+      <div><b>${item.userName || "Usuario"}</b><span>${labels[item.action] || item.action}</span>${extra ? `<small>${extra}</small>` : ""}</div>
+      <time>${item.createdAtLabel || ""}</time>
+    </div>`;
+  }).join("") || "<div class='emptyState compact'>Nenhuma atividade registrada ainda.</div>";
+}
+
+async function refreshActivity() {
+  if (!$("activityList") || !can("users")) return;
+  const data = await api("/api/activity");
+  state.activityLogs = data.activityLogs || [];
+  renderActivity();
+}
+
 function clearProposal() {
   ["customerName", "customerCompany", "customerDocument", "customerStateRegistration", "customerAddress", "customerZip", "customerPhone", "customerEmail", "customerCity"].forEach((id) => { if ($(id)) $(id).value = ""; });
   state.attachments = [];
@@ -541,6 +574,7 @@ async function createUser() {
     state.users = data.users;
     renderStats();
     renderUsers();
+    refreshActivity();
   } catch (error) {
     $("userError").textContent = error.message;
   }
@@ -699,6 +733,7 @@ function renderAll(nextCode) {
   renderClients();
   renderReports();
   renderUsers();
+  renderActivity();
 }
 
 async function boot() {
@@ -743,6 +778,7 @@ if ($("saveProposalBtn")) $("saveProposalBtn").addEventListener("click", () => s
 if ($("pdfTopBtn")) $("pdfTopBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
 if ($("pdfBottomBtn")) $("pdfBottomBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
 if ($("createUserBtn")) $("createUserBtn").addEventListener("click", createUser);
+if ($("refreshActivityBtn")) $("refreshActivityBtn").addEventListener("click", refreshActivity);
 if ($("attachmentInput")) $("attachmentInput").addEventListener("change", (event) => addAttachments(event.target.files));
 [
   ["customerDocument", maskCpfCnpj],

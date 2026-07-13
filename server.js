@@ -387,7 +387,7 @@ async function handleApi(req, res, pathname) {
           amount: Number(item.amount || 0)
         }));
     } else if (count > 0) {
-      const entry = proposal.totalWithoutFreight * entryPct / 100;
+      const entry = proposal.total * entryPct / 100;
       const financed = proposal.total - entry;
       const totalWithInterest = entry + financed * Math.pow(1 + interest, count);
       const parcelAmount = round2((totalWithInterest - entry) / count);

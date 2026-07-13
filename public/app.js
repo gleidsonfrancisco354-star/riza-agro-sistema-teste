@@ -223,7 +223,7 @@ function renderProducts() {
 function renderProductCards(target, products) {
   if (!$(target)) return;
   $(target).innerHTML = products.map((product) => `
-    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} â€¢ ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
+    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} Ã¢â‚¬Â¢ ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
   ).join("");
 }
 
@@ -441,14 +441,29 @@ function renderUsers() {
   $("newUserPerms").innerHTML = permissionCheckboxes(["dashboard", "proposal", "history"]);
   $("usersList").innerHTML = state.users.map((user) => `
     <div class="userCard" data-user="${user.id}">
-      <div><b>${user.name}</b><span>${user.email}</span><small>${user.role} â€¢ ${user.active ? "Ativo" : "Inativo"}</small></div>
+      <div class="userEditGrid">
+        <label>Nome<input class="editUserName" value="${user.name || ""}"></label>
+        <label>E-mail<input class="editUserEmail" value="${user.email || ""}"></label>
+        <label>Perfil<input class="editUserRole" value="${user.role || "Consultor"}"></label>
+        <label>Nova senha<input class="editUserPassword" placeholder="Manter senha atual"></label>
+        <label class="check statusCheck"><input class="editUserActive" type="checkbox" ${user.active ? "checked" : ""}>Usuario ativo</label>
+      </div>
       <div class="permGrid">${permissionCheckboxes(user.permissions || [])}</div>
-      <div class="rowActions"><button class="secondaryBtn savePermBtn">Salvar permissoes</button><button class="dangerTiny deleteUserBtn">Excluir usuario</button></div>
+      <div class="rowActions"><button class="secondaryBtn savePermBtn">Salvar usuario</button><button class="dangerTiny deleteUserBtn">Excluir usuario</button></div>
     </div>`).join("");
   document.querySelectorAll(".userCard").forEach((card) => {
     card.querySelector(".savePermBtn").addEventListener("click", async () => {
-      const permissions = [...card.querySelectorAll("input:checked")].map((input) => input.value);
-      const data = await api(`/api/users/${card.dataset.user}`, { method: "PATCH", body: JSON.stringify({ permissions }) });
+      const permissions = [...card.querySelectorAll(".permGrid input:checked")].map((input) => input.value);
+      const payload = {
+        name: card.querySelector(".editUserName").value.trim(),
+        email: card.querySelector(".editUserEmail").value.trim(),
+        role: card.querySelector(".editUserRole").value.trim(),
+        active: card.querySelector(".editUserActive").checked,
+        permissions
+      };
+      const password = card.querySelector(".editUserPassword").value;
+      if (password) payload.password = password;
+      const data = await api(`/api/users/${card.dataset.user}`, { method: "PATCH", body: JSON.stringify(payload) });
       state.users = data.users;
       renderUsers();
     });
@@ -460,7 +475,6 @@ function renderUsers() {
     });
   });
 }
-
 function clearProposal() {
   ["customerName", "customerCompany", "customerDocument", "customerStateRegistration", "customerAddress", "customerZip", "customerPhone", "customerEmail", "customerCity"].forEach((id) => { if ($(id)) $(id).value = ""; });
   state.attachments = [];
@@ -610,8 +624,7 @@ function calcFinance(finalTotal = null) {
   const base = finalTotal ?? currentProposalTotal();
   const entryPct = Number($("financeEntry")?.value || 0);
   const rawInstallments = Number($("financeInstallments")?.value || 0);
-  const baseWithoutFreight = state.currentTotals?.finalTotalNoFreight ?? base;
-  const entry = round2(baseWithoutFreight * entryPct / 100);
+  const entry = round2(base * entryPct / 100);
   const parcelTotal = round2(Math.max(0, base - entry));
   const cashTotal = state.currentTotals?.cashFinalTotal || base;
   if ($("entryDateLabel")) $("entryDateLabel").classList.toggle("hidden", entryPct <= 0);

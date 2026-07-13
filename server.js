@@ -433,6 +433,12 @@ async function handleApi(req, res, pathname) {
 
 function serveStatic(req, res, pathname) {
   const cleanPath = pathname === "/" ? "/index.html" : pathname;
+  const protectedPages = ["/dashboard-oficial.html", "/platform-admin.html"];
+  if (protectedPages.includes(cleanPath) && !currentUser(req)) {
+    res.writeHead(302, { Location: "/" });
+    res.end();
+    return;
+  }
   const filePath = path.normalize(path.join(publicDir, cleanPath));
   if (!filePath.startsWith(publicDir)) return send(res, 403, "Acesso negado.", "text/plain; charset=utf-8");
   fs.readFile(filePath, (error, data) => {

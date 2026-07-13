@@ -29,6 +29,22 @@ function writeDb(db) {
   fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), "utf8");
 }
 
+function addActivity(db, user, action, details = {}) {
+  db.activityLogs = Array.isArray(db.activityLogs) ? db.activityLogs : [];
+  const now = new Date();
+  db.activityLogs.push({
+    id: crypto.randomUUID(),
+    userId: user?.id || "sistema",
+    userName: user?.name || "Sistema",
+    userRole: user?.role || "",
+    action,
+    details,
+    createdAt: now.toISOString(),
+    createdAtLabel: now.toLocaleString("pt-BR")
+  });
+  db.activityLogs = db.activityLogs.slice(-500);
+}
+
 function readProducts() {
   return JSON.parse(fs.readFileSync(productsPath, "utf8").replace(/^\uFEFF/, ""));
 }
@@ -218,13 +234,21 @@ async function handleApi(req, res, pathname) {
     const token = crypto.randomBytes(24).toString("hex");
     const safeUser = publicUser(user);
     sessions.set(token, safeUser);
+    addActivity(db, safeUser, "login", { message: "Entrou no sistema" });
+    writeDb(db);
     res.setHeader("Set-Cookie", `riza_session=${token}; HttpOnly; Path=/; SameSite=Lax`);
     return send(res, 200, { user: safeUser });
   }
 
   if (req.method === "POST" && pathname === "/api/logout") {
     const token = parseCookies(req).riza_session;
+    const logoutUser = token ? sessions.get(token) : null;
     if (token) sessions.delete(token);
+    if (logoutUser) {
+      const db = readDb();
+      addActivity(db, logoutUser, "logout", { message: "Saiu do sistema" });
+      writeDb(db);
+    }
     res.setHeader("Set-Cookie", "riza_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax");
     return send(res, 200, { ok: true });
   }
@@ -245,6 +269,7 @@ async function handleApi(req, res, pathname) {
       nextCode: proposalCode(db.nextProposalNumber),
       proposals: db.proposals.slice().reverse(),
       users: can(user, "users") ? db.users.map(publicUser) : [],
+      activityLogs: can(user, "users") ? (db.activityLogs || []).slice().reverse().slice(0, 120) : [],
       clients: db.clients || [],
       products
     });
@@ -268,6 +293,12 @@ async function handleApi(req, res, pathname) {
     return send(res, 200, { users: db.users.map(publicUser), permissions: allPermissions });
   }
 
+  if (req.method === "GET" && pathname === "/api/activity") {
+    const db = readDb();
+    if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso ao registro de atividades." });
+    return send(res, 200, { activityLogs: (db.activityLogs || []).slice().reverse().slice(0, 200) });
+  }
+
   if (req.method === "POST" && pathname === "/api/users") {
     const db = readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso a usuarios." });
@@ -284,6 +315,7 @@ async function handleApi(req, res, pathname) {
       permissions: Array.isArray(body.permissions) ? body.permissions : ["dashboard", "proposal", "history"]
     };
     db.users.push(newUser);
+    addActivity(db, user, "usuario_criado", { usuario: newUser.name, email: newUser.email, perfil: newUser.role });
     writeDb(db);
     return send(res, 201, { user: publicUser(newUser), users: db.users.map(publicUser) });
   }
@@ -300,6 +332,7 @@ async function handleApi(req, res, pathname) {
     });
     if (body.active !== undefined) target.active = !!body.active;
     if (Array.isArray(body.permissions)) target.permissions = body.permissions.filter((item) => allPermissions.includes(item));
+    addActivity(db, user, "usuario_alterado", { usuario: target.name, email: target.email, ativo: target.active !== false });
     writeDb(db);
     return send(res, 200, { user: publicUser(target), users: db.users.map(publicUser) });
   }
@@ -308,9 +341,11 @@ async function handleApi(req, res, pathname) {
     const db = readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso a usuarios." });
     if (userMatch[1] === user.id) return send(res, 400, { error: "Voce nao pode excluir o usuario logado." });
+    const deletedUser = db.users.find((item) => item.id === userMatch[1]);
     const before = db.users.length;
     db.users = db.users.filter((item) => item.id !== userMatch[1]);
     if (db.users.length === before) return send(res, 404, { error: "Usuario nao encontrado." });
+    addActivity(db, user, "usuario_excluido", { usuario: deletedUser?.name || userMatch[1], email: deletedUser?.email || "" });
     writeDb(db);
     return send(res, 200, { users: db.users.map(publicUser) });
   }
@@ -405,6 +440,7 @@ async function handleApi(req, res, pathname) {
     if (!proposal.customer.name) return send(res, 400, { error: "Informe o cliente." });
     if (!proposal.items.length) return send(res, 400, { error: "Adicione ao menos um item." });
     db.proposals.push(proposal);
+    addActivity(db, user, "proposta_salva", { codigo: proposal.code, cliente: proposal.customer.name, total: proposal.total });
     writeDb(db);
     return send(res, 201, { proposal, nextCode: proposalCode(db.nextProposalNumber) });
   }
@@ -421,9 +457,11 @@ async function handleApi(req, res, pathname) {
   if (req.method === "DELETE" && proposalMatch) {
     const db = readDb();
     if (!can(user, "history")) return send(res, 403, { error: "Voce nao tem acesso ao historico." });
+    const deletedProposal = db.proposals.find((item) => item.id === proposalMatch[1]);
     const before = db.proposals.length;
     db.proposals = db.proposals.filter((item) => item.id !== proposalMatch[1]);
     if (db.proposals.length === before) return send(res, 404, { error: "Proposta nao encontrada." });
+    addActivity(db, user, "proposta_excluida", { codigo: deletedProposal?.code || proposalMatch[1], cliente: deletedProposal?.customer?.name || "" });
     writeDb(db);
     return send(res, 200, { proposals: db.proposals.slice().reverse() });
   }
@@ -434,10 +472,18 @@ async function handleApi(req, res, pathname) {
 function serveStatic(req, res, pathname) {
   const cleanPath = pathname === "/" ? "/index.html" : pathname;
   const protectedPages = ["/dashboard-oficial.html", "/platform-admin.html"];
-  if (protectedPages.includes(cleanPath) && !currentUser(req)) {
+  const user = currentUser(req);
+  if (protectedPages.includes(cleanPath) && !user) {
     res.writeHead(302, { Location: "/" });
     res.end();
     return;
+  }
+  if (protectedPages.includes(cleanPath)) {
+    try {
+      const db = readDb();
+      addActivity(db, user, cleanPath === "/dashboard-oficial.html" ? "abriu_dashboard" : "abriu_admin", { pagina: cleanPath });
+      writeDb(db);
+    } catch {}
   }
   const filePath = path.normalize(path.join(publicDir, cleanPath));
   if (!filePath.startsWith(publicDir)) return send(res, 403, "Acesso negado.", "text/plain; charset=utf-8");

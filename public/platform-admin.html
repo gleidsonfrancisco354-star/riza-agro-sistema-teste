@@ -195,7 +195,18 @@
           </div>
         </div>
         <div id="commissionsGrid" class="cards"></div>
-        <div class="panel"><h2>Resumo por colaborador</h2><div class="tableWrap"><table><thead><tr><th>Colaborador</th><th>Propostas</th><th>Volume</th><th>Comissao estimada</th></tr></thead><tbody id="commissionsBody"></tbody></table></div></div>
+        <div id="commissionUserPanel" class="panel commissionManage">
+          <h2>Adicionar colaborador</h2>
+          <div class="formGrid commissionCreateGrid">
+            <label>Nome<input id="commissionUserName" placeholder="Nome do colaborador"></label>
+            <label>E-mail<input id="commissionUserEmail" placeholder="email@rizaagro.com.br"></label>
+            <label>Perfil<select id="commissionUserRole"></select></label>
+            <label>Senha inicial<input id="commissionUserPassword" value="123456"></label>
+          </div>
+          <button id="createCommissionUserBtn" class="primaryBtn inline">Incluir colaborador</button>
+          <div id="commissionUserError" class="error"></div>
+        </div>
+        <div class="panel commissionTablePanel"><h2>Resumo por colaborador</h2><div class="tableWrap"><table class="commissionTable"><thead><tr><th>Colaborador</th><th>Perfil</th><th>Propostas</th><th>Volume</th><th>Comissao estimada</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="commissionsBody"></tbody></table></div></div>
       </section>
 
       <section id="users" class="page">

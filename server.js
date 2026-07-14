@@ -8,7 +8,10 @@ const publicDir = path.join(root, "public");
 const dbPath = path.join(root, "data", "db.json");
 const productsPath = path.join(root, "data", "products.json");
 const sessions = new Map();
-const allPermissions = ["dashboard", "proposal", "rizaPlus", "virtus", "finance", "clients", "products", "history", "reports", "commissions", "users"];
+const allPermissions = [
+  "dashboard", "proposal", "rizaPlus", "virtus", "finance", "clients", "products", "history", "reports", "commissions", "users",
+  "viewAll", "viewMargin", "viewCommissionPolicy", "viewDirectorSummary", "deleteProposals", "discountOverride"
+];
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -51,7 +54,11 @@ function readProducts() {
 
 function publicUser(user) {
   const permissions = Array.isArray(user.permissions) ? [...user.permissions] : [];
-  if (/diretor|admin/i.test(`${user.role || ""} ${user.name || ""}`) && !permissions.includes("commissions")) permissions.push("commissions");
+  if (isDirector(user)) {
+    allPermissions.forEach((permission) => {
+      if (!permissions.includes(permission)) permissions.push(permission);
+    });
+  }
   return {
     id: user.id,
     name: user.name,
@@ -62,9 +69,19 @@ function publicUser(user) {
   };
 }
 
+function isDirector(user) {
+  return /diretor|admin/i.test(`${user?.role || ""} ${user?.name || ""}`);
+}
+
 function can(user, permission) {
-  if (permission === "commissions" && /diretor|admin/i.test(`${user?.role || ""} ${user?.name || ""}`)) return true;
+  if (isDirector(user)) return true;
   return user && Array.isArray(user.permissions) && user.permissions.includes(permission);
+}
+
+function visibleProposals(db, user) {
+  const proposals = Array.isArray(db.proposals) ? db.proposals : [];
+  if (can(user, "viewAll")) return proposals;
+  return proposals.filter((proposal) => proposal.createdBy === user.id || proposal.createdByName === user.name);
 }
 
 function send(res, status, body, type = "application/json; charset=utf-8") {
@@ -263,11 +280,12 @@ async function handleApi(req, res, pathname) {
   if (req.method === "GET" && pathname === "/api/bootstrap") {
     const db = readDb();
     const products = readProducts();
+    const proposals = visibleProposals(db, user);
     return send(res, 200, {
       user,
       permissions: allPermissions,
       nextCode: proposalCode(db.nextProposalNumber),
-      proposals: db.proposals.slice().reverse(),
+      proposals: proposals.slice().reverse(),
       users: can(user, "users") ? db.users.map(publicUser) : [],
       activityLogs: can(user, "users") ? (db.activityLogs || []).slice().reverse().slice(0, 120) : [],
       clients: db.clients || [],
@@ -277,9 +295,10 @@ async function handleApi(req, res, pathname) {
 
   if (req.method === "GET" && pathname === "/api/proposals") {
     const db = readDb();
+    const proposals = visibleProposals(db, user);
     return send(res, 200, {
       nextCode: proposalCode(db.nextProposalNumber),
-      proposals: db.proposals.slice().reverse()
+      proposals: proposals.slice().reverse()
     });
   }
 
@@ -452,20 +471,23 @@ async function handleApi(req, res, pathname) {
     const db = readDb();
     const proposal = db.proposals.find((item) => item.id === pdfMatch[1]);
     if (!proposal) return send(res, 404, "Proposta nao encontrada.", "text/plain; charset=utf-8");
+    if (!can(user, "viewAll") && proposal.createdBy !== user.id && proposal.createdByName !== user.name) {
+      return send(res, 403, "Voce nao tem acesso a esta proposta.", "text/plain; charset=utf-8");
+    }
     return send(res, 200, pdfHtml(proposal), "text/html; charset=utf-8");
   }
 
   const proposalMatch = pathname.match(/^\/api\/proposals\/([^/]+)$/);
   if (req.method === "DELETE" && proposalMatch) {
     const db = readDb();
-    if (!can(user, "history")) return send(res, 403, { error: "Voce nao tem acesso ao historico." });
+    if (!can(user, "deleteProposals")) return send(res, 403, { error: "Voce nao tem permissao para excluir propostas." });
     const deletedProposal = db.proposals.find((item) => item.id === proposalMatch[1]);
     const before = db.proposals.length;
     db.proposals = db.proposals.filter((item) => item.id !== proposalMatch[1]);
     if (db.proposals.length === before) return send(res, 404, { error: "Proposta nao encontrada." });
     addActivity(db, user, "proposta_excluida", { codigo: deletedProposal?.code || proposalMatch[1], cliente: deletedProposal?.customer?.name || "" });
     writeDb(db);
-    return send(res, 200, { proposals: db.proposals.slice().reverse() });
+    return send(res, 200, { proposals: visibleProposals(db, user).slice().reverse() });
   }
 
   return send(res, 404, { error: "Rota nao encontrada." });

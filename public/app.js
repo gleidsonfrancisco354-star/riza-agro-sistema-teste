@@ -562,21 +562,75 @@ function renderCommissionsDashboard() {
     current.commission += volume * commissionPct / 100;
     bySeller.set(key, current);
   });
-  const rows = [...bySeller.values()].sort((a, b) => b.volume - a.volume);
+  state.users.forEach((user) => {
+    const existingKey = [...bySeller.entries()].find(([, row]) => row.name === user.name || (user.email && row.email === user.email))?.[0];
+    const key = existingKey || user.id || user.name;
+    if (!bySeller.has(key)) {
+      bySeller.set(key, {
+        id: user.id,
+        name: user.name || "Usuario",
+        email: user.email || "",
+        role: user.role || "Sem perfil",
+        active: user.active !== false,
+        proposals: 0,
+        volume: 0,
+        commission: 0
+      });
+    } else {
+      const current = bySeller.get(key);
+      current.id = user.id;
+      current.email = user.email || "";
+      current.role = user.role || current.role;
+      current.active = user.active !== false;
+    }
+  });
+  const rows = [...bySeller.values()].sort((a, b) => b.volume - a.volume || a.name.localeCompare(b.name));
   const totalVolume = rows.reduce((sum, row) => sum + row.volume, 0);
   const totalCommission = rows.reduce((sum, row) => sum + row.commission, 0);
+  const activeUsers = rows.filter((row) => row.active !== false).length;
   $("commissionsGrid").innerHTML = `
     <div class="infoCard"><small>Volume da equipe</small><b>${brl(totalVolume)}</b></div>
     <div class="infoCard"><small>Comissao estimada</small><b>${brl(totalCommission)}</b></div>
-    <div class="infoCard"><small>Colaboradores ativos</small><b>${rows.length}</b></div>
+    <div class="infoCard"><small>Colaboradores ativos</small><b>${activeUsers}</b></div>
     <div class="infoCard"><small>Propostas geradas</small><b>${state.proposals.length}</b></div>`;
+  if ($("commissionUserRole")) $("commissionUserRole").innerHTML = profileOptions("Representante Comercial");
+  if ($("commissionUserPanel")) $("commissionUserPanel").classList.toggle("hidden", !can("users"));
   $("commissionsBody").innerHTML = rows.map((row) => `
-    <tr>
-      <td><b>${row.name}</b><br><small>${row.role}</small></td>
+    <tr data-commission-user="${row.id || ""}">
+      <td><b>${row.name}</b><br><small>${row.email || "Sem e-mail cadastrado"}</small></td>
+      <td>${row.id && can("users") ? `<select class="commissionRole">${profileOptions(row.role)}</select>` : row.role}</td>
       <td>${row.proposals}</td>
       <td class="moneyCell">${brl(row.volume)}</td>
       <td class="moneyCell">${brl(row.commission)}</td>
-    </tr>`).join("") || `<tr><td colspan="4" class="emptyState compact">As comissoes aparecem quando as propostas forem salvas.</td></tr>`;
+      <td>${row.id && can("users") ? `<label class="check compactCheck"><input class="commissionActive" type="checkbox" ${row.active !== false ? "checked" : ""}>Ativo</label>` : (row.active === false ? "Inativo" : "Ativo")}</td>
+      <td>${row.id && can("users") ? `<div class="rowActions"><button class="secondaryBtn commissionSaveBtn">Salvar</button><button class="dangerTiny commissionDeleteBtn">Excluir</button></div>` : "-"}</td>
+    </tr>`).join("") || `<tr><td colspan="7" class="emptyState compact">As comissoes aparecem quando as propostas forem salvas.</td></tr>`;
+  document.querySelectorAll("[data-commission-user]").forEach((row) => {
+    if (!row.dataset.commissionUser || !can("users")) return;
+    row.querySelector(".commissionSaveBtn")?.addEventListener("click", async () => {
+      const user = state.users.find((item) => item.id === row.dataset.commissionUser);
+      const payload = {
+        name: user.name,
+        email: user.email,
+        role: row.querySelector(".commissionRole").value,
+        active: row.querySelector(".commissionActive").checked,
+        permissions: user.permissions || []
+      };
+      const data = await api(`/api/users/${row.dataset.commissionUser}`, { method: "PATCH", body: JSON.stringify(payload) });
+      state.users = data.users;
+      renderCommissionsDashboard();
+      renderUsers();
+      refreshActivity();
+    });
+    row.querySelector(".commissionDeleteBtn")?.addEventListener("click", async () => {
+      if (!confirm("Excluir este colaborador?")) return;
+      const data = await api(`/api/users/${row.dataset.commissionUser}`, { method: "DELETE" });
+      state.users = data.users;
+      renderCommissionsDashboard();
+      renderUsers();
+      refreshActivity();
+    });
+  });
 }
 
 function renderUsers() {
@@ -610,6 +664,7 @@ function renderUsers() {
       const data = await api(`/api/users/${card.dataset.user}`, { method: "PATCH", body: JSON.stringify(payload) });
       state.users = data.users;
       renderUsers();
+      renderCommissionsDashboard();
       refreshActivity();
     });
     card.querySelector(".deleteUserBtn").addEventListener("click", async () => {
@@ -617,6 +672,7 @@ function renderUsers() {
       const data = await api(`/api/users/${card.dataset.user}`, { method: "DELETE" });
       state.users = data.users;
       renderUsers();
+      renderCommissionsDashboard();
       refreshActivity();
     });
   });
@@ -718,9 +774,35 @@ async function createUser() {
     state.users = data.users;
     renderStats();
     renderUsers();
+    renderCommissionsDashboard();
     refreshActivity();
   } catch (error) {
     $("userError").textContent = error.message;
+  }
+}
+
+async function createCommissionUser() {
+  if (!$("commissionUserError")) return;
+  $("commissionUserError").textContent = "";
+  try {
+    const data = await api("/api/users", {
+      method: "POST",
+      body: JSON.stringify({
+        name: $("commissionUserName").value.trim(),
+        email: $("commissionUserEmail").value.trim(),
+        password: $("commissionUserPassword").value || "123456",
+        role: $("commissionUserRole").value,
+        permissions: ["dashboard", "proposal", "history", "commissions"]
+      })
+    });
+    state.users = data.users;
+    ["commissionUserName", "commissionUserEmail"].forEach((id) => { if ($(id)) $(id).value = ""; });
+    if ($("commissionUserPassword")) $("commissionUserPassword").value = "123456";
+    renderCommissionsDashboard();
+    renderUsers();
+    refreshActivity();
+  } catch (error) {
+    $("commissionUserError").textContent = error.message;
   }
 }
 
@@ -925,6 +1007,7 @@ if ($("saveProposalBtn")) $("saveProposalBtn").addEventListener("click", () => s
 if ($("pdfTopBtn")) $("pdfTopBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
 if ($("pdfBottomBtn")) $("pdfBottomBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
 if ($("createUserBtn")) $("createUserBtn").addEventListener("click", createUser);
+if ($("createCommissionUserBtn")) $("createCommissionUserBtn").addEventListener("click", createCommissionUser);
 if ($("refreshActivityBtn")) $("refreshActivityBtn").addEventListener("click", refreshActivity);
 if ($("attachmentInput")) $("attachmentInput").addEventListener("change", (event) => addAttachments(event.target.files));
 [

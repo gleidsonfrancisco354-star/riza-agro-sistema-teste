@@ -4,47 +4,42 @@ const round2 = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100
 const brl = (value) => round2(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 const commissionPolicies = {
-  representante: {
-    label: "Representante Comercial",
-    subtitle: "Cliente Final / Revendas",
+  revenda: {
+    label: "Revenda",
+    subtitle: "Desconto automatico de 10%",
+    maxDiscount: 10,
+    autoItemDiscount: 10,
     rows: [
-      ["Representante Comercial", 10.00, true],
-      ["Coordenador Regional", 2.50, true],
+      ["Coordenador Regional", 2.50, false],
+      ["RTV", 3.00, false],
       ["Gerente Nacional de Vendas", 1.00, false],
       ["Retaguarda Comercial", 0.10, false],
       ["Gerente de Planejamento", 0.25, false],
       ["Diretor Comercial", 0.33, false]
     ]
   },
-  rtv: {
-    label: "RTV",
-    subtitle: "Representante Tecnico de Vendas",
+  venda_direta: {
+    label: "Venda Direta",
+    subtitle: "Desconto maximo de 15%",
+    maxDiscount: 15,
+    autoItemDiscount: 0,
     rows: [
-      ["Representante Tecnico de Vendas", 3.00, true],
-      ["Coordenador Regional", 2.50, true],
+      ["Coordenador Regional", 1.00, false],
       ["Gerente Nacional de Vendas", 1.00, false],
       ["Retaguarda Comercial", 0.10, false],
       ["Gerente de Planejamento", 0.25, false],
       ["Diretor Comercial", 0.33, false]
     ]
   },
-  sem_rep_rtv: {
-    label: "Sem RTV / Representante",
-    subtitle: "Operacao interna",
+  cliente_final: {
+    label: "Cliente Final",
+    subtitle: "Desconto maximo de 10%",
+    maxDiscount: 10,
+    autoItemDiscount: 0,
     rows: [
-      ["Coordenador Regional", 5.00, true],
+      ["Representante Comercial", 10.00, true, 1.00],
+      ["Coordenador Regional", 2.50, true, 1.00],
       ["Gerente Nacional de Vendas", 1.00, false],
-      ["Retaguarda Comercial", 0.10, false],
-      ["Gerente de Planejamento", 0.25, false],
-      ["Diretor Comercial", 0.33, false]
-    ]
-  },
-  vendas_diretas: {
-    label: "Vendas Diretas",
-    subtitle: "Canal estrategico",
-    rows: [
-      ["Coordenador Regional", 1.00, true],
-      ["Gerente Nacional de Vendas", 0.33, false],
       ["Retaguarda Comercial", 0.10, false],
       ["Gerente de Planejamento", 0.25, false],
       ["Diretor Comercial", 0.33, false]
@@ -149,6 +144,41 @@ function paymentHorizonDays() {
   return paymentHorizonMonths() * 30;
 }
 
+function getCommissionPolicy() {
+  return commissionPolicies[$("saleModel")?.value] || commissionPolicies.revenda;
+}
+
+function applySaleModelRules() {
+  const policy = getCommissionPolicy();
+  const maxDiscount = Number(policy.maxDiscount || 0);
+  const autoDiscount = Number(policy.autoItemDiscount || 0);
+  if ($("discountPct")) {
+    $("discountPct").max = String(maxDiscount);
+    if (autoDiscount > 0) {
+      $("discountPct").value = "0";
+      $("discountPct").disabled = true;
+    } else {
+      $("discountPct").disabled = false;
+      if (Number($("discountPct").value || 0) > maxDiscount) $("discountPct").value = String(maxDiscount);
+    }
+  }
+  $("itemsBody")?.querySelectorAll(".itemDiscountInput").forEach((input) => {
+    input.max = String(maxDiscount);
+    if (autoDiscount > 0) {
+      input.value = autoDiscount.toFixed(2);
+      input.readOnly = true;
+      input.dataset.autoDiscount = "true";
+      input.title = "Revenda aplica desconto automatico de 10%.";
+    } else {
+      if (input.dataset.autoDiscount === "true") input.value = "0";
+      delete input.dataset.autoDiscount;
+      input.readOnly = false;
+      input.title = `Desconto maximo deste canal: ${maxDiscount}%`;
+      if (Number(input.value || 0) > maxDiscount) input.value = String(maxDiscount);
+    }
+  });
+}
+
 function updateItemPricesForPayment() {
   const months = paymentHorizonMonths();
   $("itemsBody")?.querySelectorAll("tr").forEach((tr) => {
@@ -223,7 +253,7 @@ function renderProducts() {
 function renderProductCards(target, products) {
   if (!$(target)) return;
   $(target).innerHTML = products.map((product) => `
-    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} â€¢ ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
+    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} Ã¢â‚¬Â¢ ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
   ).join("");
 }
 
@@ -231,7 +261,7 @@ function renderMiniProducts(target, products) {
   if (!$(target)) return;
   $(target).innerHTML = products.map((product) => {
     const index = state.products.indexOf(product);
-    return `<tr><td>${product.linha} | ${product.produto}</td><td>${product.tecnologia}</td><td>${product.apresentacao}</td><td class="moneyCell">${brl(product.preco)}</td><td><button class="addMiniBtn" data-add-product="${index}">+</button></td></tr>`;
+    return `<tr><td>${product.linha} | ${product.produto}</td><td>${product.tecnologia}</td><td>${product.apresentacao}</td><td class="moneyCell">${brl(product.preco)}</td><td><button class="addMiniBtn" data-add-product="${index}">Incluir</button></td></tr>`;
   }).join("");
   $(target).querySelectorAll("[data-add-product]").forEach((button) => button.addEventListener("click", () => addItem(state.products[Number(button.dataset.addProduct)])));
 }
@@ -292,6 +322,7 @@ function addItem(product = state.products[0]) {
   tr.querySelectorAll("input").forEach((input) => input.addEventListener("input", calculateTotals));
   tr.querySelector(".removeBtn").addEventListener("click", () => { tr.remove(); calculateTotals(); });
   $("itemsBody").appendChild(tr);
+  applySaleModelRules();
   calculateTotals();
 }
 
@@ -332,6 +363,7 @@ function currentProposalTotal() {
 }
 
 function calculateTotals() {
+  applySaleModelRules();
   updateItemPricesForPayment();
   let grossTotal = 0;
   let cashGrossTotal = 0;
@@ -357,7 +389,9 @@ function calculateTotals() {
     itemDiscountTotal += itemDiscount;
     cashItemDiscountTotal += cashItemDiscount;
   });
-  const discountPct = Number($("discountPct")?.value || 0);
+  const policy = getCommissionPolicy();
+  const maxDiscount = Number(policy.maxDiscount || 0);
+  const discountPct = Math.min(Math.max(0, Number($("discountPct")?.value || 0)), maxDiscount);
   const freight = $("freightEnabled")?.checked ? round2(Math.max(0, Number($("freightValue")?.value || 0))) : 0;
   grossTotal = round2(grossTotal);
   cashGrossTotal = round2(cashGrossTotal);
@@ -365,8 +399,12 @@ function calculateTotals() {
   cashItemDiscountTotal = round2(cashItemDiscountTotal);
   const afterItemDiscount = round2(Math.max(0, grossTotal - itemDiscountTotal));
   const cashAfterItemDiscount = round2(Math.max(0, cashGrossTotal - cashItemDiscountTotal));
-  const globalDiscountValue = round2(afterItemDiscount * discountPct / 100);
-  const cashGlobalDiscountValue = round2(cashAfterItemDiscount * discountPct / 100);
+  const maxDiscountValue = round2(grossTotal * maxDiscount / 100);
+  const maxCashDiscountValue = round2(cashGrossTotal * maxDiscount / 100);
+  const availableGlobalDiscount = Math.max(0, maxDiscountValue - itemDiscountTotal);
+  const availableCashGlobalDiscount = Math.max(0, maxCashDiscountValue - cashItemDiscountTotal);
+  const globalDiscountValue = round2(Math.min(afterItemDiscount * discountPct / 100, availableGlobalDiscount));
+  const cashGlobalDiscountValue = round2(Math.min(cashAfterItemDiscount * discountPct / 100, availableCashGlobalDiscount));
   const discountValue = round2(itemDiscountTotal + globalDiscountValue);
   const cashDiscountValue = round2(cashItemDiscountTotal + cashGlobalDiscountValue);
   const finalTotalNoFreight = round2(Math.max(0, grossTotal - discountValue));
@@ -374,15 +412,16 @@ function calculateTotals() {
   const finalTotal = round2(finalTotalNoFreight + freight);
   const cashFinalTotal = round2(cashFinalTotalNoFreight + freight);
   const totalDiscountPct = grossTotal > 0 ? discountValue / grossTotal * 100 : 0;
-  const commissionPct = getCommissionTotals(totalDiscountPct).finalPct / 100;
+  const commissionInfo = getCommissionTotals(totalDiscountPct);
+  const commissionPct = commissionInfo.finalPct / 100;
   const commission = round2(finalTotalNoFreight * commissionPct);
   state.currentTotals = { grossTotal, cashGrossTotal, discountValue, cashDiscountValue, finalTotal, finalTotalNoFreight, cashFinalTotal, cashFinalTotalNoFreight, freight, totalDiscountPct, horizonDays: paymentHorizonDays(), horizonMonths: paymentHorizonMonths() };
   const pairs = [["proposalTotal", finalTotal], ["kpiGross", round2(cashGrossTotal + freight)], ["kpiDiscount", discountValue], ["kpiFinal", finalTotal], ["kpiCommission", commission], ["financeGross", round2(cashGrossTotal + freight)], ["financeDiscount", discountValue], ["financeFinal", finalTotal]];
   pairs.forEach(([id, value]) => { if ($(id)) $(id).textContent = brl(value); });
   if ($("kpiItems")) $("kpiItems").textContent = `${itemCount} itens`;
   if ($("kpiFinalItems")) $("kpiFinalItems").textContent = `${itemCount} itens`;
-  const discountLabel = $("kpiDiscount")?.nextElementSibling;
-  if (discountLabel) discountLabel.textContent = `${discountPct.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+  if ($("kpiDiscountPct")) $("kpiDiscountPct").textContent = `${totalDiscountPct.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+  if ($("kpiCommissionPct")) $("kpiCommissionPct").textContent = `${commissionInfo.finalPct.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
   if ($("directorSummary")) {
     $("directorSummary").innerHTML = `
       <div class="summaryRow"><span>Modelo</span><b>${getCommissionPolicy().label}</b></div>
@@ -390,8 +429,7 @@ function calculateTotals() {
       <div class="summaryRow"><span>Desconto</span><b>${brl(discountValue)}</b></div>
       ${freight > 0 ? `<div class="summaryRow"><span>Frete</span><b>${brl(freight)}</b></div>` : ""}
       <div class="summaryRow final"><span>Total final negociado</span><b>${brl(finalTotal)}</b></div>
-      <div class="summaryRow"><span>Comissao Final</span><b>${brl(commission)}</b></div>
-      <div class="summaryRow"><span>Margem</span><b>${Number($("marginPct")?.value || 15).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%</b></div>`;
+      <div class="summaryRow"><span>Comissao Final</span><b>${brl(commission)}</b></div>`;
   }
   calcFinance(finalTotal);
   renderCommission(finalTotal, grossTotal, totalDiscountPct);
@@ -640,10 +678,10 @@ function collectFinancial() {
     totalWithInterest: state.currentTotals?.finalTotal || 0,
     freightEnabled: $("freightEnabled")?.checked || false,
     freightValue: freight,
-    commissionBasePct: Number($("commissionBase")?.value || 14.18),
-    commissionFinalPct: Number($("commissionFinal")?.value || 14.18),
+    commissionBasePct: Number($("commissionBase")?.value || 7.18),
+    commissionFinalPct: Number($("commissionFinal")?.value || 7.18),
     marginPct: Number($("marginPct")?.value || 15),
-    saleModel: $("saleModel")?.value || "representante",
+    saleModel: $("saleModel")?.value || "revenda",
     saleModelLabel: getCommissionPolicy().label,
     installmentSchedule: [...document.querySelectorAll(".installmentRow")].map((row, index) => ({
       label: `Parcela ${index + 1}`,
@@ -694,35 +732,35 @@ function renderInstallments(amount, count) {
   $("installmentsBox").querySelectorAll(".installmentDateInput,.installmentAmountInput").forEach((input) => input.addEventListener("change", calculateTotals));
 }
 
-function getCommissionPolicy() {
-  return commissionPolicies[$("saleModel")?.value] || commissionPolicies.representante;
-}
-
 function getCommissionTotals(discountPct = 0) {
   const policy = getCommissionPolicy();
   const basePct = policy.rows.reduce((sum, row) => sum + row[1], 0);
-  const negotiablePct = policy.rows.filter((row) => row[2]).reduce((sum, row) => sum + row[1], 0);
-  const discountOnCommission = Math.min(Math.max(0, discountPct), negotiablePct);
+  const maxDiscount = Number(policy.maxDiscount || 0);
+  const discountOnCommission = Math.min(Math.max(0, discountPct), maxDiscount);
   const finalPct = policy.rows.reduce((sum, row) => {
-    if (!row[2] || negotiablePct <= 0) return sum + row[1];
-    return sum + Math.max(0, row[1] - discountOnCommission * (row[1] / negotiablePct));
+    const [name, pct, negotiable, floorPct] = row;
+    if (!negotiable || maxDiscount <= 0) return sum + pct;
+    const minimum = Number(floorPct || 0);
+    const reduced = pct - ((pct - minimum) * (discountOnCommission / maxDiscount));
+    return sum + Math.max(minimum, reduced);
   }, 0);
-  return { policy, basePct, finalPct, discountOnCommission, negotiablePct };
+  return { policy, basePct, finalPct, discountOnCommission, maxDiscount };
 }
 
 function renderCommission(finalTotal, grossTotal = finalTotal, discountPct = 0) {
-  const { policy, basePct, finalPct, discountOnCommission, negotiablePct } = getCommissionTotals(discountPct);
+  const { policy, basePct, finalPct, discountOnCommission, maxDiscount } = getCommissionTotals(discountPct);
   if ($("commissionChannel")) $("commissionChannel").innerHTML = `${policy.label}<br><small>${policy.subtitle}</small>`;
   if ($("commissionBaseBox")) $("commissionBaseBox").textContent = `${basePct.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%`;
   if ($("commissionFinalBox")) $("commissionFinalBox").textContent = `${finalPct.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%`;
   if ($("commissionBase")) $("commissionBase").value = basePct.toFixed(2);
   if ($("commissionFinal")) $("commissionFinal").value = finalPct.toFixed(2);
   if (!$("commissionRows")) return;
-  $("commissionRows").innerHTML = policy.rows.map(([name, pct, negotiable]) => {
-    const finalRowPct = negotiable && negotiablePct > 0
-      ? Math.max(0, pct - discountOnCommission * (pct / negotiablePct))
+  $("commissionRows").innerHTML = policy.rows.map(([name, pct, negotiable, floorPct]) => {
+    const minimum = Number(floorPct || 0);
+    const finalRowPct = negotiable && maxDiscount > 0
+      ? Math.max(minimum, pct - ((pct - minimum) * (discountOnCommission / maxDiscount)))
       : pct;
-    return `<tr><td>${name}</td><td>${pct.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%</td><td>${finalRowPct.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%</td><td class="moneyCell">${brl(grossTotal * finalRowPct / 100)}</td></tr>`;
+    return `<tr><td>${name}</td><td>${pct.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%</td><td>${finalRowPct.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%</td><td class="moneyCell">${brl(finalTotal * finalRowPct / 100)}</td></tr>`;
   }).join("");
 }
 

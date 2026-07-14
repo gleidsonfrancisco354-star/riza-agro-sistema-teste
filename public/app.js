@@ -70,6 +70,35 @@ const userProfiles = [
   "Gerente de Planejamento"
 ];
 
+const permissionLabels = {
+  dashboard: "Dashboard",
+  proposal: "Proposta comercial",
+  rizaPlus: "Tabela Riza+",
+  virtus: "Tabela Riza Virtus",
+  finance: "Simulador financeiro",
+  clients: "Clientes",
+  products: "Produtos",
+  history: "Historico",
+  reports: "Relatorios",
+  commissions: "Comissionamento da equipe",
+  users: "Usuarios e permissoes",
+  viewAll: "Ver tudo da equipe",
+  viewMargin: "Ver margem",
+  viewCommissionPolicy: "Ver politica de comissao",
+  viewDirectorSummary: "Ver resumo diretoria",
+  deleteProposals: "Excluir propostas",
+  discountOverride: "Liberar desconto acima da regra"
+};
+
+const profilePermissions = {
+  "Representante Comercial": ["dashboard", "proposal", "rizaPlus", "virtus", "clients", "history"],
+  "RTV": ["dashboard", "proposal", "rizaPlus", "virtus", "clients", "history"],
+  "Coordenador Regional": ["dashboard", "proposal", "rizaPlus", "virtus", "clients", "history", "reports", "commissions", "viewAll"],
+  "Gerente de Planejamento": ["dashboard", "proposal", "rizaPlus", "virtus", "clients", "products", "history", "reports", "commissions", "viewAll", "viewMargin"],
+  "Retaguarda Comercial": ["dashboard", "proposal", "rizaPlus", "virtus", "clients", "products", "history", "reports", "commissions", "viewAll", "viewCommissionPolicy"],
+  "Diretor Comercial": ["dashboard", "proposal", "rizaPlus", "virtus", "finance", "clients", "products", "history", "reports", "commissions", "users", "viewAll", "viewMargin", "viewCommissionPolicy", "viewDirectorSummary", "deleteProposals", "discountOverride"]
+};
+
 async function api(path, options = {}) {
   const response = await fetch(path, {
     headers: { "Content-Type": "application/json", ...(options.headers || {}) },
@@ -194,8 +223,9 @@ function getCommissionPolicy() {
 
 function applySaleModelRules() {
   const policy = getCommissionPolicy();
-  const maxDiscount = Number(policy.maxDiscount || 0);
-  const autoDiscount = Number(policy.autoItemDiscount || 0);
+  const canOverride = can("discountOverride");
+  const maxDiscount = canOverride ? 100 : Number(policy.maxDiscount || 0);
+  const autoDiscount = canOverride ? 0 : Number(policy.autoItemDiscount || 0);
   if ($("discountPct")) {
     $("discountPct").max = String(maxDiscount);
     if (autoDiscount > 0) {
@@ -221,6 +251,21 @@ function applySaleModelRules() {
       if (Number(input.value || 0) > maxDiscount) input.value = String(maxDiscount);
     }
   });
+}
+
+function renderSensitiveUi() {
+  const visibility = [
+    ["marginPct", can("viewMargin")],
+    ["commissionBase", can("viewCommissionPolicy")],
+    ["commissionFinal", can("viewCommissionPolicy")]
+  ];
+  visibility.forEach(([id, visible]) => {
+    const input = $(id);
+    if (input?.closest("label")) input.closest("label").classList.toggle("hidden", !visible);
+  });
+  document.querySelectorAll(".commissionBox").forEach((item) => item.classList.toggle("hidden", !can("viewCommissionPolicy")));
+  document.querySelectorAll(".summaryPanel").forEach((item) => item.classList.toggle("hidden", !can("viewDirectorSummary")));
+  if ($("directorSummary")) $("directorSummary").classList.toggle("hidden", !can("viewDirectorSummary"));
 }
 
 function updateItemPricesForPayment() {
@@ -502,7 +547,7 @@ function renderHistory() {
     <tr>
       <td><b>${proposal.code}</b></td><td>${proposal.customer.name}<br><small>${proposal.customer.company || ""}</small></td>
       <td class="moneyCell">${brl(proposal.total)}</td><td>${proposal.createdByName}</td><td>${proposal.createdAtLabel}</td>
-      <td><div class="rowActions"><button class="secondaryBtn" data-pdf="${proposal.id}">PDF</button><button class="dangerTiny" data-delete-proposal="${proposal.id}">Excluir</button></div></td>
+      <td><div class="rowActions"><button class="secondaryBtn" data-pdf="${proposal.id}">PDF</button>${can("deleteProposals") ? `<button class="dangerTiny" data-delete-proposal="${proposal.id}">Excluir</button>` : ""}</div></td>
     </tr>`).join("");
   $("emptyHistory").style.display = state.proposals.length ? "none" : "block";
   document.querySelectorAll("[data-pdf]").forEach((button) => button.addEventListener("click", () => window.open(`/api/proposals/${button.dataset.pdf}/pdf`, "_blank")));
@@ -532,8 +577,11 @@ function renderReports() {
 
 function permissionCheckboxes(selected = []) {
   return modules.map(([id, label]) => `
-    <label class="check"><input type="checkbox" value="${id}" ${selected.includes(id) ? "checked" : ""}>${label}</label>`
-  ).join("");
+    <label class="check"><input type="checkbox" value="${id}" ${selected.includes(id) ? "checked" : ""}>${permissionLabels[id] || label}</label>`
+  ).join("") + Object.entries(permissionLabels)
+    .filter(([id]) => !modules.some(([moduleId]) => moduleId === id))
+    .map(([id, label]) => `<label class="check sensitivePerm"><input type="checkbox" value="${id}" ${selected.includes(id) ? "checked" : ""}>${label}</label>`)
+    .join("");
 }
 
 function profileOptions(selected = "") {
@@ -635,7 +683,7 @@ function renderCommissionsDashboard() {
 
 function renderUsers() {
   if (!can("users")) return;
-  $("newUserPerms").innerHTML = permissionCheckboxes(["dashboard", "proposal", "history", "commissions"]);
+  $("newUserPerms").innerHTML = permissionCheckboxes(profilePermissions["Representante Comercial"]);
   if ($("newUserRole") && $("newUserRole").tagName === "SELECT") $("newUserRole").innerHTML = profileOptions("Representante Comercial");
   $("usersList").innerHTML = state.users.map((user) => `
     <div class="userCard" data-user="${user.id}">
@@ -650,6 +698,10 @@ function renderUsers() {
       <div class="rowActions"><button class="secondaryBtn savePermBtn">Salvar usuario</button><button class="dangerTiny deleteUserBtn">Excluir usuario</button></div>
     </div>`).join("");
   document.querySelectorAll(".userCard").forEach((card) => {
+    card.querySelector(".editUserRole")?.addEventListener("change", () => {
+      const defaults = profilePermissions[card.querySelector(".editUserRole").value] || [];
+      card.querySelectorAll(".permGrid input").forEach((input) => { input.checked = defaults.includes(input.value); });
+    });
     card.querySelector(".savePermBtn").addEventListener("click", async () => {
       const permissions = [...card.querySelectorAll(".permGrid input:checked")].map((input) => input.value);
       const payload = {
@@ -675,6 +727,10 @@ function renderUsers() {
       renderCommissionsDashboard();
       refreshActivity();
     });
+  });
+  $("newUserRole")?.addEventListener("change", () => {
+    const defaults = profilePermissions[$("newUserRole").value] || [];
+    $("newUserPerms").querySelectorAll("input").forEach((input) => { input.checked = defaults.includes(input.value); });
   });
 }
 
@@ -792,7 +848,7 @@ async function createCommissionUser() {
         email: $("commissionUserEmail").value.trim(),
         password: $("commissionUserPassword").value || "123456",
         role: $("commissionUserRole").value,
-        permissions: ["dashboard", "proposal", "history", "commissions"]
+        permissions: profilePermissions[$("commissionUserRole").value] || profilePermissions["Representante Comercial"]
       })
     });
     state.users = data.users;
@@ -959,6 +1015,7 @@ function renderCommission(finalTotal, grossTotal = finalTotal, discountPct = 0) 
 }
 
 function renderAll(nextCode) {
+  renderSensitiveUi();
   renderStats(nextCode);
   renderProducts();
   renderHistory();

@@ -8,7 +8,7 @@ const publicDir = path.join(root, "public");
 const dbPath = path.join(root, "data", "db.json");
 const productsPath = path.join(root, "data", "products.json");
 const sessions = new Map();
-const allPermissions = ["dashboard", "proposal", "rizaPlus", "virtus", "finance", "clients", "products", "history", "reports", "users"];
+const allPermissions = ["dashboard", "proposal", "rizaPlus", "virtus", "finance", "clients", "products", "history", "reports", "commissions", "users"];
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -50,17 +50,20 @@ function readProducts() {
 }
 
 function publicUser(user) {
+  const permissions = Array.isArray(user.permissions) ? [...user.permissions] : [];
+  if (/diretor|admin/i.test(`${user.role || ""} ${user.name || ""}`) && !permissions.includes("commissions")) permissions.push("commissions");
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role,
     active: user.active !== false,
-    permissions: user.permissions || []
+    permissions
   };
 }
 
 function can(user, permission) {
+  if (permission === "commissions" && /diretor|admin/i.test(`${user?.role || ""} ${user?.name || ""}`)) return true;
   return user && Array.isArray(user.permissions) && user.permissions.includes(permission);
 }
 
@@ -164,7 +167,7 @@ function pdfHtml(proposal) {
       <td><b>${escapeHtml(item.product)}</b><br>${escapeHtml(item.line || "")}</td>
       <td>${escapeHtml(item.standard)}</td>
       <td>${escapeHtml(item.package)}</td>
-      <td class="num">${escapeHtml(item.quantity)}</td>
+      <td class="num">${Number(item.quantity || 0).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</td>
       <td class="num">${money(item.unitPrice)}</td>
       <td class="num">${Number(item.discountPct || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%</td>
       <td class="num">${money(item.discountedUnitPrice ?? (Number(item.unitPrice || 0) * (1 - Number(item.discountPct || 0) / 100)))}</td>
@@ -177,19 +180,19 @@ function pdfHtml(proposal) {
 <meta charset="utf-8">
 <title>${escapeHtml(proposal.code)} - Riza Agro</title>
 <style>
-  @page{size:A4;margin:9mm}
-  body{font-family:Arial,Segoe UI,sans-serif;color:#111;margin:0;background:#fff;font-size:11px}
-  .topline{display:grid;grid-template-columns:1fr 1fr 1fr;font-size:9px;margin-bottom:12px}.topline div:nth-child(2){text-align:center}.topline div:nth-child(3){text-align:right}
-  .header{display:grid;grid-template-columns:260px 1fr;gap:16px;align-items:center;border-bottom:4px solid #06451f;padding-bottom:10px;margin-bottom:16px}
-  .logoBox img{max-width:250px;max-height:70px}.company{text-align:right;line-height:1.55}.company b{font-size:13px}
-  .title{text-align:center}.title h1{color:#06451f;font-size:20px;margin:0 0 14px;font-weight:1000;letter-spacing:.02em}
-  h2{font-size:13px;color:#06451f;margin:14px 0 8px;text-transform:uppercase}
-  .meta{display:grid;grid-template-columns:1fr 1fr;gap:18px;border:1px solid #cfd8cf;border-radius:8px;padding:12px 14px;margin:10px 0 14px}
-  .meta div{line-height:1.8}
-  table{width:100%;border-collapse:collapse;margin-top:10px}th{background:#fff;color:#999;text-transform:uppercase;font-size:9px;border-top:1.5px solid #06451f;border-bottom:1.5px solid #06451f}th,td{border:1px solid #cfd8cf;padding:8px;text-align:left}.num{text-align:right;font-weight:900}
-  tfoot td{font-weight:1000;background:#fff;color:#111}.box{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.box>div{border:1px solid #cfd8cf;border-radius:8px;padding:12px;line-height:1.7;min-height:74px}
-  .sign{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:42px}.sign div{border-top:1px solid #111;text-align:center;padding-top:8px}
-  .footer{margin-top:18px;text-align:center;color:#6b756e;font-size:10px;border-top:1px solid #dfe5df;padding-top:8px}
+  @page{size:A4;margin:6mm}
+  body{font-family:Arial,Segoe UI,sans-serif;color:#111;margin:0;background:#fff;font-size:9.5px}
+  .topline{display:grid;grid-template-columns:1fr 1fr 1fr;font-size:8px;margin-bottom:7px}.topline div:nth-child(2){text-align:center}.topline div:nth-child(3){text-align:right}
+  .header{display:grid;grid-template-columns:210px 1fr;gap:12px;align-items:center;border-bottom:3px solid #06451f;padding-bottom:7px;margin-bottom:9px}
+  .logoBox img{max-width:200px;max-height:52px}.company{text-align:right;line-height:1.35}.company b{font-size:12px}
+  .title{text-align:center}.title h1{color:#06451f;font-size:17px;margin:0 0 8px;font-weight:1000;letter-spacing:.02em}
+  h2{font-size:11px;color:#06451f;margin:9px 0 5px;text-transform:uppercase}
+  .meta{display:grid;grid-template-columns:1fr 1fr;gap:12px;border:1px solid #cfd8cf;border-radius:7px;padding:8px 10px;margin:7px 0 9px}
+  .meta div{line-height:1.45}
+  table{width:100%;border-collapse:collapse;margin-top:6px}th{background:#fff;color:#777;text-transform:uppercase;font-size:8px;border-top:1.5px solid #06451f;border-bottom:1.5px solid #06451f}th,td{border:1px solid #cfd8cf;padding:5px;text-align:left}.num{text-align:right;font-weight:900;white-space:nowrap}
+  tfoot td{font-weight:1000;background:#fff;color:#111}
+  .sign{display:grid;grid-template-columns:1fr 1fr;gap:36px;margin-top:24px}.sign div{border-top:1px solid #111;text-align:center;padding-top:6px}
+  .footer{margin-top:8px;text-align:center;color:#6b756e;font-size:8px;border-top:1px solid #dfe5df;padding-top:5px}
   .no-print{position:fixed;right:18px;top:18px;background:#063d21;color:#fff;border:0;border-radius:6px;padding:10px 14px;font-weight:800;cursor:pointer}
   @media print{.no-print{display:none}}
 </style>
@@ -208,16 +211,12 @@ function pdfHtml(proposal) {
 </div>
 <h2>Itens da proposta</h2>
 <table>
-  <thead><tr><th>Cultivar/Linha</th><th>Padrao</th><th>Embalagem</th><th>Qtde</th><th>Valor/kg c/ juros</th><th>Desc.</th><th>Valor/kg c/ desc.</th><th>Total c/ juros</th></tr></thead>
+  <thead><tr><th>Cultivar/Linha</th><th>Padrao</th><th>Embalagem</th><th>Qtde</th><th>Valor/KG</th><th>Desc.</th><th>Valor/KG c/ desc.</th><th>Total</th></tr></thead>
   <tbody>${items}</tbody>
   <tfoot><tr><td colspan="7">Total da Proposta sem Juros</td><td class="num">${money(finalCashNoFreight)}</td></tr>${freight > 0 ? `<tr><td colspan="7">Frete</td><td class="num">${money(freight)}</td></tr>` : ""}<tr><td colspan="7">Total Final Negociado</td><td class="num">${money(finalTotal)}</td></tr></tfoot>
 </table>
-<div class="box">
-  <div><b>Condicao de Pagamento</b><br>Forma: ${escapeHtml(proposal.payment)}<br>Parcelas: ${installments.length ? `${installments.length}x` : "A combinar"}<br>Juros aplicado: ${Number(financial.interestPct || 2).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}% a.m.<br>Periodo aplicado: ${Number(financial.paymentHorizonMonths || Math.ceil(Number(financial.paymentHorizonDays || 0) / 30) || 0)} mes(es)</div>
-  <div><b>Condicao Comercial</b><br>Validade: ${escapeHtml(proposal.validity || "conforme negociacao comercial")}<br>Frete: ${freight > 0 ? money(freight) : "conforme combinado"}</div>
-</div>
 ${installments.length ? `<h2>Cronograma de parcelas</h2><table><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>${installments.map((item) => `<tr><td>${escapeHtml(item.label)}</td><td>${escapeHtml(item.date)}</td><td class="num">${money(item.amount)}</td></tr>`).join("")}</tbody></table>` : ""}
-<div style="margin-top:14px;line-height:1.6"><b>Observacoes:</b><br>1. Proposta sujeita a disponibilidade de estoque no momento do pedido.<br>2. Valores e condicoes conforme negociacao comercial informada.<br>3. Documento gerado para cliente conforme condicoes negociadas.${proposal.notes ? `<br>4. ${escapeHtml(proposal.notes)}` : ""}</div>
+<div style="margin-top:7px;line-height:1.35"><b>Observacoes:</b> Proposta sujeita a disponibilidade de estoque. Valores e condicoes conforme negociacao comercial.${proposal.notes ? ` ${escapeHtml(proposal.notes)}` : ""}</div>
 ${attachments.length ? `<h2>Documentos anexos</h2><table><thead><tr><th>Arquivo</th><th>Tamanho</th></tr></thead><tbody>${attachments.map((item) => `<tr><td>${escapeHtml(item.name)}</td><td class="num">${Number((item.size || 0) / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} KB</td></tr>`).join("")}</tbody></table>` : ""}
 <div class="sign"><div>Consultor Comercial</div><div>Cliente / Aceite</div></div>
 <div class="footer">Riza Agro - Solucoes em Pastagens</div>

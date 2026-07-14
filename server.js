@@ -167,6 +167,7 @@ function pdfHtml(proposal) {
       <td class="num">${escapeHtml(item.quantity)}</td>
       <td class="num">${money(item.unitPrice)}</td>
       <td class="num">${Number(item.discountPct || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}%</td>
+      <td class="num">${money(item.discountedUnitPrice ?? (Number(item.unitPrice || 0) * (1 - Number(item.discountPct || 0) / 100)))}</td>
       <td class="num">${money(item.total)}</td>
     </tr>`).join("");
 
@@ -207,9 +208,9 @@ function pdfHtml(proposal) {
 </div>
 <h2>Itens da proposta</h2>
 <table>
-  <thead><tr><th>Cultivar/Linha</th><th>Padrao</th><th>Embalagem</th><th>Qtde</th><th>Valor/kg c/ juros</th><th>Desc.</th><th>Total c/ juros</th></tr></thead>
+  <thead><tr><th>Cultivar/Linha</th><th>Padrao</th><th>Embalagem</th><th>Qtde</th><th>Valor/kg c/ juros</th><th>Desc.</th><th>Valor/kg c/ desc.</th><th>Total c/ juros</th></tr></thead>
   <tbody>${items}</tbody>
-  <tfoot><tr><td colspan="6">Total da Proposta sem Juros</td><td class="num">${money(finalCashNoFreight)}</td></tr>${freight > 0 ? `<tr><td colspan="6">Frete</td><td class="num">${money(freight)}</td></tr>` : ""}<tr><td colspan="6">Total Final Negociado</td><td class="num">${money(finalTotal)}</td></tr></tfoot>
+  <tfoot><tr><td colspan="7">Total da Proposta sem Juros</td><td class="num">${money(finalCashNoFreight)}</td></tr>${freight > 0 ? `<tr><td colspan="7">Frete</td><td class="num">${money(freight)}</td></tr>` : ""}<tr><td colspan="7">Total Final Negociado</td><td class="num">${money(finalTotal)}</td></tr></tfoot>
 </table>
 <div class="box">
   <div><b>Condicao de Pagamento</b><br>Forma: ${escapeHtml(proposal.payment)}<br>Parcelas: ${installments.length ? `${installments.length}x` : "A combinar"}<br>Juros aplicado: ${Number(financial.interestPct || 2).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}% a.m.<br>Periodo aplicado: ${Number(financial.paymentHorizonMonths || Math.ceil(Number(financial.paymentHorizonDays || 0) / 30) || 0)} mes(es)</div>
@@ -366,6 +367,7 @@ async function handleApi(req, res, pathname) {
         const unitPrice = Number(item.unitPrice || 0);
         const cashUnitPrice = Number(item.cashUnitPrice || unitPrice);
         const discountPct = Number(item.discountPct || 0);
+        const discountedUnitPrice = Number(item.discountedUnitPrice ?? Math.max(0, unitPrice - unitPrice * discountPct / 100));
         const grossTotal = quantity * unitPrice;
         const grossCashTotal = quantity * cashUnitPrice;
         return {
@@ -375,6 +377,7 @@ async function handleApi(req, res, pathname) {
           package: item.package,
           quantity,
           unitPrice,
+          discountedUnitPrice,
           cashUnitPrice,
           discountPct,
           grossTotal,

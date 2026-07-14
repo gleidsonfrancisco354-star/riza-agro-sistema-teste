@@ -57,7 +57,17 @@ const modules = [
   ["products", "PRODUTOS", "products"],
   ["history", "HISTORICO", "history"],
   ["reports", "RELATORIOS", "reports"],
+  ["commissions", "COMISSIONAMENTO", "commission"],
   ["users", "CONFIGURACOES", "settings"]
+];
+
+const userProfiles = [
+  "Representante Comercial",
+  "Coordenador Regional",
+  "RTV",
+  "Diretor Comercial",
+  "Retaguarda Comercial",
+  "Gerente de Planejamento"
 ];
 
 async function api(path, options = {}) {
@@ -526,15 +536,59 @@ function permissionCheckboxes(selected = []) {
   ).join("");
 }
 
+function profileOptions(selected = "") {
+  const current = selected || "Representante Comercial";
+  const options = userProfiles.includes(current) ? userProfiles : [current, ...userProfiles];
+  return options.map((profile) => `<option value="${profile}" ${profile === current ? "selected" : ""}>${profile}</option>`).join("");
+}
+
+function renderCommissionsDashboard() {
+  if (!$("commissionsGrid") || !can("commissions")) return;
+  const bySeller = new Map();
+  state.proposals.forEach((proposal) => {
+    const key = proposal.createdBy || proposal.createdByName || "sem-id";
+    const user = state.users.find((item) => item.id === proposal.createdBy || item.name === proposal.createdByName) || {};
+    const current = bySeller.get(key) || {
+      name: proposal.createdByName || user.name || "Usuario",
+      role: user.role || "Sem perfil",
+      proposals: 0,
+      volume: 0,
+      commission: 0
+    };
+    const volume = Number(proposal.totalWithoutFreight || proposal.total || 0);
+    const commissionPct = Number(proposal.financial?.commissionFinalPct || 0);
+    current.proposals += 1;
+    current.volume += volume;
+    current.commission += volume * commissionPct / 100;
+    bySeller.set(key, current);
+  });
+  const rows = [...bySeller.values()].sort((a, b) => b.volume - a.volume);
+  const totalVolume = rows.reduce((sum, row) => sum + row.volume, 0);
+  const totalCommission = rows.reduce((sum, row) => sum + row.commission, 0);
+  $("commissionsGrid").innerHTML = `
+    <div class="infoCard"><small>Volume da equipe</small><b>${brl(totalVolume)}</b></div>
+    <div class="infoCard"><small>Comissao estimada</small><b>${brl(totalCommission)}</b></div>
+    <div class="infoCard"><small>Colaboradores ativos</small><b>${rows.length}</b></div>
+    <div class="infoCard"><small>Propostas geradas</small><b>${state.proposals.length}</b></div>`;
+  $("commissionsBody").innerHTML = rows.map((row) => `
+    <tr>
+      <td><b>${row.name}</b><br><small>${row.role}</small></td>
+      <td>${row.proposals}</td>
+      <td class="moneyCell">${brl(row.volume)}</td>
+      <td class="moneyCell">${brl(row.commission)}</td>
+    </tr>`).join("") || `<tr><td colspan="4" class="emptyState compact">As comissoes aparecem quando as propostas forem salvas.</td></tr>`;
+}
+
 function renderUsers() {
   if (!can("users")) return;
-  $("newUserPerms").innerHTML = permissionCheckboxes(["dashboard", "proposal", "history"]);
+  $("newUserPerms").innerHTML = permissionCheckboxes(["dashboard", "proposal", "history", "commissions"]);
+  if ($("newUserRole") && $("newUserRole").tagName === "SELECT") $("newUserRole").innerHTML = profileOptions("Representante Comercial");
   $("usersList").innerHTML = state.users.map((user) => `
     <div class="userCard" data-user="${user.id}">
       <div class="userEditGrid">
         <label>Nome<input class="editUserName" value="${user.name || ""}"></label>
         <label>E-mail<input class="editUserEmail" value="${user.email || ""}"></label>
-        <label>Perfil<input class="editUserRole" value="${user.role || "Consultor"}"></label>
+        <label>Perfil<select class="editUserRole">${profileOptions(user.role)}</select></label>
         <label>Nova senha<input class="editUserPassword" placeholder="Manter senha atual"></label>
         <label class="check statusCheck"><input class="editUserActive" type="checkbox" ${user.active ? "checked" : ""}>Usuario ativo</label>
       </div>
@@ -828,6 +882,7 @@ function renderAll(nextCode) {
   renderHistory();
   renderClients();
   renderReports();
+  renderCommissionsDashboard();
   renderUsers();
   renderActivity();
 }

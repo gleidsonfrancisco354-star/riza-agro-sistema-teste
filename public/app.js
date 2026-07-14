@@ -750,10 +750,6 @@ async function boot() {
     addItem();
     if ($("proposalDate")) $("proposalDate").valueAsDate = new Date();
     if ($("entryDate")) $("entryDate").valueAsDate = new Date();
-    if (["/", "/index.html"].includes(window.location.pathname)) {
-      window.location.href = "/dashboard-oficial.html";
-      return;
-    }
     showPage(can("dashboard") ? "dashboard" : state.user.permissions[0]);
   } catch {
     $("loginView").classList.remove("hidden");

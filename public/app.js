@@ -83,7 +83,11 @@ function uniqueValues(items, field) {
 }
 
 function cleanText(value) {
-  return String(value || "")
+  let text = String(value || "");
+  try {
+    text = decodeURIComponent(escape(text));
+  } catch {}
+  return text
     .replace(/Ãƒâ€¡/g, "Ã‡")
     .replace(/ÃƒÂ/g, "Ã")
     .replace(/Ãƒâ€°/g, "Ã‰")
@@ -95,7 +99,8 @@ function cleanText(value) {
     .replace(/ÃƒÂ³/g, "Ã³")
     .replace(/ÃƒÂº/g, "Ãº")
     .replace(/Ã‚Âª/g, "Âª")
-    .replace(/ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢/g, "-")
+    .replace(/ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢|â€¢/g, "-")
+    .replace(/ï¿½/g, "")
     .replace(/\s+-\s+/g, " - ");
 }
 
@@ -139,9 +144,28 @@ function prazoIndexFromMonths(months) {
   return Math.min(Math.max(0, Math.floor(Number(months || 0))), 6);
 }
 
+function dateFromInput(value) {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function commercialMonthsBetween(startValue, endValue) {
+  const start = dateFromInput(startValue);
+  const end = dateFromInput(endValue);
+  if (!start || !end || end < start) return 0;
+  return Math.max(0, (end.getFullYear() - start.getFullYear()) * 12 + end.getMonth() - start.getMonth());
+}
+
 function paymentHorizonMonths() {
-  const count = Math.max(0, Math.floor(Number($("financeInstallments")?.value || 0)));
-  return count;
+  const startDate = $("proposalDate")?.value || new Date().toISOString().slice(0, 10);
+  const installmentDates = [...document.querySelectorAll(".installmentDateInput")]
+    .map((input) => input.value)
+    .filter(Boolean);
+  if (installmentDates.length) {
+    return Math.max(...installmentDates.map((date) => commercialMonthsBetween(startDate, date)));
+  }
+  return Math.max(0, Math.floor(Number($("financeInstallments")?.value || 0)));
 }
 
 function priceForMonths(product, months) {
@@ -309,6 +333,7 @@ function addItem(product = state.products[0]) {
     <td>UN</td>
     <td><input class="priceInput" type="number" min="0" step="0.01" value="${product.preco || 0}"></td>
     <td><input class="itemDiscountInput" type="number" min="0" max="100" step="0.01" value="0"></td>
+    <td class="discountedUnitCell">R$ 0,00</td>
     <td class="totalCell">R$ 0,00</td>
     <td><button type="button" class="removeBtn">Remover</button></td>`;
   const lineSelect = tr.querySelector(".lineSelect");
@@ -367,6 +392,7 @@ function readItems() {
     const unitPrice = Number(tr.querySelector(".priceInput").value || 0);
     const cashUnitPrice = Number(selected.preco || unitPrice);
     const discountPct = Number(tr.querySelector(".itemDiscountInput")?.value || 0);
+    const discountedUnitPrice = round2(Math.max(0, unitPrice - unitPrice * discountPct / 100));
     const grossTotal = quantity * unitPrice;
     const grossCashTotal = quantity * cashUnitPrice;
     return {
@@ -376,6 +402,7 @@ function readItems() {
       package: tr.querySelector(".packageInput").value,
       quantity,
       unitPrice,
+      discountedUnitPrice,
       cashUnitPrice,
       discountPct,
       grossTotal,
@@ -411,6 +438,8 @@ function calculateTotals() {
     const itemDiscount = round2(grossLine * itemDiscountPct / 100);
     const cashItemDiscount = round2(cashGrossLine * itemDiscountPct / 100);
     const line = round2(Math.max(0, grossLine - itemDiscount));
+    const discountedUnit = round2(Math.max(0, unitPrice - unitPrice * itemDiscountPct / 100));
+    if (tr.querySelector(".discountedUnitCell")) tr.querySelector(".discountedUnitCell").textContent = brl(discountedUnit);
     tr.querySelector(".totalCell").textContent = brl(line);
     tr.querySelector(".totalCell").dataset.total = String(line);
     itemCount += qty;
@@ -851,7 +880,7 @@ if ($("attachmentInput")) $("attachmentInput").addEventListener("change", (event
 ].forEach(([id, mask]) => {
   if ($(id)) $(id).addEventListener("input", () => { $(id).value = mask($(id).value); });
 });
-["payment", "financeEntry", "entryDate", "financeInterest", "financeInstallments", "discountPct", "marginPct", "saleModel", "freightEnabled", "freightValue"].forEach((id) => {
+["proposalDate", "payment", "financeEntry", "entryDate", "financeInterest", "financeInstallments", "discountPct", "marginPct", "saleModel", "freightEnabled", "freightValue"].forEach((id) => {
   if ($(id)) $(id).addEventListener("input", calculateTotals);
   if ($(id)) $(id).addEventListener("change", calculateTotals);
 });

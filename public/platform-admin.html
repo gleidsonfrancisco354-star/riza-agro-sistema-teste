@@ -186,13 +186,25 @@
       <section id="history" class="page"><div class="panel"><h2>Historico centralizado</h2><div class="tableWrap"><table><thead><tr><th>Numero</th><th>Cliente</th><th>Total</th><th>Responsavel</th><th>Data</th><th>Acoes</th></tr></thead><tbody id="historyBody"></tbody></table></div><div id="emptyHistory" class="emptyState">Nenhuma proposta salva ainda.</div></div></section>
       <section id="reports" class="page"><div class="panel"><h2>Relatorios</h2><div id="reportsGrid" class="cards"></div></div></section>
 
+      <section id="commissions" class="page">
+        <div class="dashboardHero">
+          <div>
+            <small>Equipe comercial</small>
+            <h2>Comissionamento da equipe</h2>
+            <p>Controle de comissoes estimadas por vendedor, perfil e propostas geradas.</p>
+          </div>
+        </div>
+        <div id="commissionsGrid" class="cards"></div>
+        <div class="panel"><h2>Resumo por colaborador</h2><div class="tableWrap"><table><thead><tr><th>Colaborador</th><th>Propostas</th><th>Volume</th><th>Comissao estimada</th></tr></thead><tbody id="commissionsBody"></tbody></table></div></div>
+      </section>
+
       <section id="users" class="page">
         <div class="grid twoWide">
           <div class="panel"><h2>Criar usuario</h2><div class="formGrid one">
             <label>Nome<input id="newUserName"></label>
             <label>E-mail<input id="newUserEmail"></label>
             <label>Senha<input id="newUserPassword" value="123456"></label>
-            <label>Perfil<input id="newUserRole" value="Consultor"></label>
+            <label>Perfil<select id="newUserRole"></select></label>
           </div><div id="newUserPerms" class="permGrid"></div><button id="createUserBtn" class="primaryBtn inline">Criar usuario</button><div id="userError" class="error"></div></div>
           <div class="panel"><h2>Usuarios e permissoes</h2><div id="usersList" class="usersList"></div></div>
         </div>

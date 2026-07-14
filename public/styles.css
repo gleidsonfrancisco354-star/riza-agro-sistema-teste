@@ -102,6 +102,7 @@ label{display:block;font-size:11px;font-weight:1000;text-transform:uppercase;col
 .icon-products:after{width:18px;height:18px;border:3px solid #fff;border-radius:4px;transform:rotate(45deg)}
 .icon-history:before{width:18px;height:18px;border:3px solid #fff;border-right-color:transparent;border-radius:50%}.icon-history:after{width:0;height:0;border-left:7px solid #fff;border-top:5px solid transparent;border-bottom:5px solid transparent;right:6px;top:8px}
 .icon-reports:before{width:4px;height:12px;background:#fff;bottom:8px;left:9px;box-shadow:8px -5px 0 #fff,16px -10px 0 #fff}.icon-reports:after{width:23px;height:3px;background:#fff;bottom:6px;left:5px}
+.icon-commission:before{width:20px;height:20px;border:3px solid #fff;border-radius:50%}.icon-commission:after{content:"$";position:static;color:#fff;font-size:16px;font-weight:1000;line-height:1;text-shadow:0 1px 0 rgba(0,0,0,.25)}
 .icon-settings:before{width:18px;height:18px;border:4px solid #fff;border-radius:50%}.icon-settings:after{width:6px;height:6px;background:#fff;border-radius:50%}
 .kpi-money:after{content:"$";position:static;color:#fff;font-size:34px;font-weight:700;line-height:1;text-shadow:0 2px 0 rgba(0,0,0,.25)}
 .kpi-discount:before{width:32px;height:4px;background:#fff;transform:rotate(-45deg);border-radius:4px}.kpi-discount:after{width:8px;height:8px;border:3px solid #fff;border-radius:50%;left:12px;top:13px;box-shadow:18px 18px 0 -3px transparent,18px 18px 0 0 #fff}

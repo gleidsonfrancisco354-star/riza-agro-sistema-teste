@@ -75,11 +75,28 @@ function can(id) {
 }
 
 function productName(product) {
-  return `${product.linha} | ${product.produto} | ${product.tecnologia}`;
+  return `${cleanText(product.linha)} | ${cleanText(product.produto)} | ${cleanText(product.tecnologia)}`;
 }
 
 function uniqueValues(items, field) {
   return [...new Set(items.map((item) => item[field]).filter(Boolean))];
+}
+
+function cleanText(value) {
+  return String(value || "")
+    .replace(/Ãƒâ€¡/g, "Ã‡")
+    .replace(/ÃƒÂ/g, "Ã")
+    .replace(/Ãƒâ€°/g, "Ã‰")
+    .replace(/ÃƒÆ’/g, "Ãƒ")
+    .replace(/ÃƒÂ£/g, "Ã£")
+    .replace(/ÃƒÂ¡/g, "Ã¡")
+    .replace(/ÃƒÂ©/g, "Ã©")
+    .replace(/ÃƒÂ­/g, "Ã­")
+    .replace(/ÃƒÂ³/g, "Ã³")
+    .replace(/ÃƒÂº/g, "Ãº")
+    .replace(/Ã‚Âª/g, "Âª")
+    .replace(/ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢/g, "-")
+    .replace(/\s+-\s+/g, " - ");
 }
 
 function onlyDigits(value) {
@@ -242,7 +259,7 @@ function renderDashboard() {
 
 function renderProducts() {
   $("productsBody").innerHTML = state.products.map((product) => `
-    <tr><td>${product.linha}</td><td><b>${product.produto}</b></td><td>${product.tecnologia}</td><td>${product.apresentacao}</td><td class="moneyCell">${brl(product.preco)}</td></tr>`
+    <tr><td>${cleanText(product.linha)}</td><td><b>${cleanText(product.produto)}</b></td><td>${cleanText(product.tecnologia)}</td><td>${cleanText(product.apresentacao)}</td><td class="moneyCell">${brl(product.preco)}</td></tr>`
   ).join("");
   renderProductCards("rizaPlusGrid", state.products.filter((product) => product.linha === "RIZA+"));
   renderProductCards("virtusGrid", state.products.filter((product) => product.linha === "RIZA VIRTUS"));
@@ -252,16 +269,29 @@ function renderProducts() {
 
 function renderProductCards(target, products) {
   if (!$(target)) return;
-  $(target).innerHTML = products.map((product) => `
-    <div class="productCard"><small>${product.linha}</small><b>${product.produto}</b><span>${product.tecnologia} Ã¢â‚¬Â¢ ${product.apresentacao}</span><strong>${brl(product.preco)}</strong></div>`
+  $(target).innerHTML = products.map((product) => {
+    const index = state.products.indexOf(product);
+    return `
+    <div class="productCard">
+      <small>${cleanText(product.linha)}</small>
+      <b>${cleanText(product.produto)}</b>
+      <span>${cleanText(product.tecnologia)} - ${cleanText(product.apresentacao)}</span>
+      <strong>${brl(product.preco)}</strong>
+      <button class="productAddBtn" data-add-product="${index}">Incluir na proposta</button>
+    </div>`;
+  }
   ).join("");
+  $(target).querySelectorAll("[data-add-product]").forEach((button) => button.addEventListener("click", () => {
+    addItem(state.products[Number(button.dataset.addProduct)]);
+    showPage("proposal");
+  }));
 }
 
 function renderMiniProducts(target, products) {
   if (!$(target)) return;
   $(target).innerHTML = products.map((product) => {
     const index = state.products.indexOf(product);
-    return `<tr><td>${product.linha} | ${product.produto}</td><td>${product.tecnologia}</td><td>${product.apresentacao}</td><td class="moneyCell">${brl(product.preco)}</td><td><button class="addMiniBtn" data-add-product="${index}">Incluir</button></td></tr>`;
+    return `<tr><td>${cleanText(product.linha)} | ${cleanText(product.produto)}</td><td>${cleanText(product.tecnologia)}</td><td>${cleanText(product.apresentacao)}</td><td class="moneyCell">${brl(product.preco)}</td><td><button class="addMiniBtn" data-add-product="${index}">Incluir</button></td></tr>`;
   }).join("");
   $(target).querySelectorAll("[data-add-product]").forEach((button) => button.addEventListener("click", () => addItem(state.products[Number(button.dataset.addProduct)])));
 }
@@ -269,7 +299,7 @@ function renderMiniProducts(target, products) {
 function addItem(product = state.products[0]) {
   if (!product) return;
   const tr = document.createElement("tr");
-  const lineOptions = uniqueValues(state.products, "linha").map((line) => `<option value="${line}">${line}</option>`).join("");
+  const lineOptions = uniqueValues(state.products, "linha").map((line) => `<option value="${line}">${cleanText(line)}</option>`).join("");
   tr.innerHTML = `
     <td><select class="lineSelect">${lineOptions}</select></td>
     <td><select class="cultivarSelect"></select></td>
@@ -287,13 +317,13 @@ function addItem(product = state.products[0]) {
 
   function fillCultivars(preferredCultivar) {
     const cultivars = uniqueValues(state.products.filter((item) => item.linha === lineSelect.value), "produto");
-    cultivarSelect.innerHTML = cultivars.map((cultivar) => `<option value="${cultivar}">${cultivar}</option>`).join("");
+    cultivarSelect.innerHTML = cultivars.map((cultivar) => `<option value="${cultivar}">${cleanText(cultivar)}</option>`).join("");
     if (preferredCultivar && cultivars.includes(preferredCultivar)) cultivarSelect.value = preferredCultivar;
   }
 
   function fillStandards(preferredStandard) {
     const standards = uniqueValues(state.products.filter((item) => item.linha === lineSelect.value && item.produto === cultivarSelect.value), "tecnologia");
-    standardSelect.innerHTML = standards.map((standard) => `<option value="${standard}">${standard}</option>`).join("");
+    standardSelect.innerHTML = standards.map((standard) => `<option value="${standard}">${cleanText(standard)}</option>`).join("");
     if (preferredStandard && standards.map(String).includes(String(preferredStandard))) standardSelect.value = preferredStandard;
   }
 

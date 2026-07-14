@@ -170,15 +170,8 @@ function paymentHorizonMonths() {
 
 function priceForMonths(product, months) {
   const cleanMonths = Math.max(0, Math.floor(Number(months || 0)));
-  const index = prazoIndexFromMonths(cleanMonths);
-  if (Array.isArray(product?.prazos) && product.prazos[index] !== undefined) {
-    const listed = Number(product.prazos[index]);
-    if (cleanMonths <= 6) return round2(listed);
-    const monthlyInterest = Number($("financeInterest")?.value || 2) / 100;
-    return round2(listed * Math.pow(1 + monthlyInterest, cleanMonths - 6));
-  }
   const monthlyInterest = Number($("financeInterest")?.value || 2) / 100;
-  return round2(Number(product?.preco || 0) * Math.pow(1 + monthlyInterest, index));
+  return round2(Number(product?.preco || 0) * Math.pow(1 + monthlyInterest, cleanMonths));
 }
 
 function paymentHorizonDays() {
@@ -767,7 +760,8 @@ function renderInstallments(amount, count) {
   if (!$("installmentsBox")) return;
   const previous = [...document.querySelectorAll(".installmentRow")].map((row) => ({
     date: row.querySelector(".installmentDateInput")?.value || "",
-    amount: row.querySelector(".installmentAmountInput")?.value || ""
+    amount: row.querySelector(".installmentAmountInput")?.value || "",
+    manualAmount: row.querySelector(".installmentAmountInput")?.dataset.manual === "true"
   }));
   if (!count || count <= 0) {
     $("installmentsBox").innerHTML = `<div class="emptyState compact">Informe o numero de parcelas para gerar as datas.</div>`;
@@ -780,15 +774,20 @@ function renderInstallments(amount, count) {
     date.setMonth(date.getMonth() + index + 1);
     const isoDate = previous[index]?.date || date.toISOString().slice(0, 10);
     const adjustedLast = index === count - 1 ? round2(amount - defaultAmount * (count - 1)) : defaultAmount;
-    const value = previous[index]?.amount || adjustedLast.toFixed(2);
+    const isManual = previous[index]?.manualAmount;
+    const value = isManual ? previous[index].amount : adjustedLast.toFixed(2);
     return `<tr class="installmentRow">
       <td>Parcela ${index + 1}</td>
       <td><input class="installmentDateInput" type="date" value="${isoDate}"></td>
-      <td><input class="installmentAmountInput" type="number" min="0" step="0.01" value="${value}"></td>
+      <td><input class="installmentAmountInput" type="number" min="0" step="0.01" value="${value}" ${isManual ? 'data-manual="true"' : ""}></td>
     </tr>`;
   }).join("");
   $("installmentsBox").innerHTML = `<h3>Cronograma de parcelas</h3><table><thead><tr><th>Parcela</th><th>Data</th><th>Valor</th></tr></thead><tbody>${rows}</tbody></table>`;
-  $("installmentsBox").querySelectorAll(".installmentDateInput,.installmentAmountInput").forEach((input) => input.addEventListener("change", calculateTotals));
+  $("installmentsBox").querySelectorAll(".installmentDateInput").forEach((input) => input.addEventListener("change", calculateTotals));
+  $("installmentsBox").querySelectorAll(".installmentAmountInput").forEach((input) => input.addEventListener("change", () => {
+    input.dataset.manual = "true";
+    calculateTotals();
+  }));
 }
 
 function getCommissionTotals(discountPct = 0) {

@@ -86,9 +86,9 @@
       <section id="proposal" class="page">
         <div class="kpis">
           <div class="kpi dashboardKpi"><div class="kpiIcon kpi-money"></div><div><small>Valor Total</small><b id="kpiGross">R$ 0,00</b><span id="kpiItems">0 itens</span></div></div>
-          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-discount"></div><div><small>Desconto</small><b id="kpiDiscount">R$ 0,00</b><span>0,00%</span></div></div>
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-discount"></div><div><small>Desconto</small><b id="kpiDiscount">R$ 0,00</b><span id="kpiDiscountPct">0,00%</span></div></div>
           <div class="kpi dashboardKpi"><div class="kpiIcon kpi-final"></div><div><small>Valor Final</small><b id="kpiFinal">R$ 0,00</b><span id="kpiFinalItems">0 itens</span></div></div>
-          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-commission"></div><div><small>Comissao</small><b id="kpiCommission">R$ 0,00</b><span>14,18%</span></div></div>
+          <div class="kpi dashboardKpi"><div class="kpiIcon kpi-commission"></div><div><small>Comissao</small><b id="kpiCommission">R$ 0,00</b><span id="kpiCommissionPct">7,18%</span></div></div>
         </div>
 
         <div class="simGrid">
@@ -118,9 +118,9 @@
 
           <div class="rightStack">
             <div class="panel financePanel"><h2>SIMULADOR FINANCEIRO</h2><div class="formGrid financeGrid">
-              <label>Modelo de Venda / Canal<select id="saleModel"><option value="representante">Representante Comercial - 14,18%</option><option value="rtv">RTV - 7,18%</option><option value="sem_rep_rtv">Sem RTV / Representante - 6,68%</option><option value="vendas_diretas">Vendas Diretas - 2,01%</option></select></label>
-              <label>Comissao Base (%)<input id="commissionBase" type="number" value="14.18" step="0.01"></label>
-              <label>Comissao Final (%)<input id="commissionFinal" type="number" value="14.18" step="0.01"></label>
+              <label>Modelo de Venda / Canal<select id="saleModel"><option value="revenda">Revenda</option><option value="venda_direta">Venda Direta</option><option value="cliente_final">Cliente Final</option></select></label>
+              <label>Comissao Base (%)<input id="commissionBase" type="number" value="7.18" step="0.01"></label>
+              <label>Comissao Final (%)<input id="commissionFinal" type="number" value="7.18" step="0.01"></label>
               <label>Margem Comercial (%)<input id="marginPct" type="number" value="15.00" step="0.01"></label>
               <label>Desconto Geral (%)<input id="discountPct" type="number" value="0" step="0.01"></label>
             </div>
@@ -143,7 +143,7 @@
             <div class="installmentsBox" id="installmentsBox"></div>
             <div class="commissionBox">
               <h3>POLITICA DE COMISSIONAMENTO</h3>
-              <div class="commissionGrid"><div><small>Canal</small><b id="commissionChannel">Representante Comercial</b></div><div><small>Comissao Base</small><b id="commissionBaseBox">14,18%</b></div><div><small>Comissao apos negociacao</small><b id="commissionFinalBox">14,18%</b></div></div>
+              <div class="commissionGrid"><div><small>Canal</small><b id="commissionChannel">Revenda</b></div><div><small>Comissao Base</small><b id="commissionBaseBox">7,18%</b></div><div><small>Comissao apos negociacao</small><b id="commissionFinalBox">7,18%</b></div></div>
               <table><thead><tr><th>Participante</th><th>% Politica</th><th>% Final</th><th>Valor Comissao</th></tr></thead><tbody id="commissionRows"></tbody></table>
             </div></div>
           </div>

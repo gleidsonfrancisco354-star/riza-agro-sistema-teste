@@ -110,7 +110,7 @@
 
             <div class="panel">
               <div class="panelActions"><h2>ITENS DA PROPOSTA</h2><button id="addItemBtn" class="secondaryBtn">Adicionar item</button></div>
-              <div class="tableWrap"><table><thead><tr><th>Linha</th><th>Cultivar</th><th>Padrao</th><th>Embalagem</th><th>Qtde</th><th>Unid</th><th>Preco Unit.</th><th>Desc. %</th><th>Preco kg c/ desc.</th><th>Total</th><th>Acao</th></tr></thead><tbody id="itemsBody"></tbody></table></div>
+              <div class="tableWrap"><table class="proposalItemsTable"><thead><tr><th>Cultivar/Linha</th><th>Padrao</th><th>Emb.</th><th>Qtde</th><th>Un.</th><th>Preco</th><th>Desc.</th><th>Preco kg c/ desc.</th><th>Total</th><th>Acao</th></tr></thead><tbody id="itemsBody"></tbody></table></div>
               <div class="totalBar"><span>Total Geral</span><b id="proposalTotal">R$ 0,00</b></div>
               <div id="formError" class="error"></div>
             </div>
@@ -150,8 +150,8 @@
         </div>
 
         <div class="bottomProducts">
-          <div class="panel"><div class="panelActions"><h2>+ RIZA+</h2><button class="miniBtn" data-page-jump="rizaPlus">Ver todos Riza+</button></div><div class="tableWrap"><table><thead><tr><th>Produto</th><th>Padrao</th><th>Embalagem</th><th>Preco Unit.</th><th>Acao</th></tr></thead><tbody id="rizaPlusMini"></tbody></table></div></div>
-          <div class="panel"><div class="panelActions"><h2>RIZA VIRTUS</h2><button class="miniBtn" data-page-jump="virtus">Ver todos Riza Virtus</button></div><div class="tableWrap"><table><thead><tr><th>Produto</th><th>Padrao</th><th>Embalagem</th><th>Preco Unit.</th><th>Acao</th></tr></thead><tbody id="virtusMini"></tbody></table></div></div>
+          <div class="panel"><div class="panelActions"><h2>+ RIZA+</h2><button class="miniBtn" data-page-jump="rizaPlus">Ver todos Riza+</button></div><div class="tableWrap"><table class="miniProductsTable"><thead><tr><th>Produto</th><th>Padrao</th><th>Emb.</th><th>Preco</th><th>Acao</th></tr></thead><tbody id="rizaPlusMini"></tbody></table></div></div>
+          <div class="panel"><div class="panelActions"><h2>RIZA VIRTUS</h2><button class="miniBtn" data-page-jump="virtus">Ver todos Riza Virtus</button></div><div class="tableWrap"><table class="miniProductsTable"><thead><tr><th>Produto</th><th>Padrao</th><th>Emb.</th><th>Preco</th><th>Acao</th></tr></thead><tbody id="virtusMini"></tbody></table></div></div>
           <div class="panel summaryPanel"><h2>Resumo Diretoria</h2><div id="directorSummary"></div><button id="pdfBottomBtn" class="greenStrip">Gerar Proposta em PDF</button></div>
         </div>
       </section>

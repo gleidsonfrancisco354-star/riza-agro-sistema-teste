@@ -5,7 +5,10 @@ const crypto = require("crypto");
 
 const root = __dirname;
 const publicDir = path.join(root, "public");
-const dbPath = path.join(root, "data", "db.json");
+const defaultDataDir = path.join(root, "data");
+const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : defaultDataDir;
+const dbPath = path.join(dataDir, "db.json");
+const seedDbPath = path.join(defaultDataDir, "db.json");
 const productsPath = path.join(root, "data", "products.json");
 const sessions = new Map();
 const allPermissions = [
@@ -24,11 +27,18 @@ const mimeTypes = {
   ".svg": "image/svg+xml; charset=utf-8"
 };
 
+function ensureDataStore() {
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+  if (!fs.existsSync(dbPath)) fs.copyFileSync(seedDbPath, dbPath);
+}
+
 function readDb() {
+  ensureDataStore();
   return JSON.parse(fs.readFileSync(dbPath, "utf8"));
 }
 
 function writeDb(db) {
+  ensureDataStore();
   fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), "utf8");
 }
 
@@ -242,6 +252,90 @@ ${attachments.length ? `<h2>Documentos anexos</h2><table><thead><tr><th>Arquivo<
 </html>`;
 }
 
+function normalizeProposalFromBody(baseProposal, body, user) {
+  const proposal = {
+    ...baseProposal,
+    customer: body.customer || {},
+    items: (body.items || []).map((item) => {
+      const quantity = Number(item.quantity || 0);
+      const unitPrice = Number(item.unitPrice || 0);
+      const cashUnitPrice = Number(item.cashUnitPrice || unitPrice);
+      const discountPct = Number(item.discountPct || 0);
+      const discountedUnitPrice = Number(item.discountedUnitPrice ?? Math.max(0, unitPrice - unitPrice * discountPct / 100));
+      const grossTotal = quantity * unitPrice;
+      const grossCashTotal = quantity * cashUnitPrice;
+      return {
+        line: item.line,
+        product: item.product,
+        standard: item.standard,
+        package: item.package,
+        quantity,
+        unitPrice,
+        discountedUnitPrice,
+        cashUnitPrice,
+        discountPct,
+        grossTotal,
+        grossCashTotal,
+        total: Math.max(0, grossTotal - grossTotal * discountPct / 100),
+        cashTotal: Math.max(0, grossCashTotal - grossCashTotal * discountPct / 100)
+      };
+    }).filter((item) => item.product && item.quantity > 0),
+    payment: body.payment || "A combinar",
+    validity: body.validity || "",
+    notes: body.notes || "",
+    financial: body.financial || {},
+    attachments: Array.isArray(body.attachments) ? body.attachments.map((item) => ({
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      size: Number(item.size || 0),
+      content: item.content
+    })) : []
+  };
+  const gross = proposal.items.reduce((sum, item) => sum + item.grossTotal, 0);
+  const cashGross = proposal.items.reduce((sum, item) => sum + item.grossCashTotal, 0);
+  const itemDiscount = proposal.items.reduce((sum, item) => sum + (item.grossTotal - item.total), 0);
+  const cashItemDiscount = proposal.items.reduce((sum, item) => sum + (item.grossCashTotal - item.cashTotal), 0);
+  const discountPct = Number((proposal.financial && proposal.financial.discountPct) || 0);
+  proposal.discount = round2(itemDiscount + Math.max(0, gross - itemDiscount) * discountPct / 100);
+  proposal.cashDiscount = round2(cashItemDiscount + Math.max(0, cashGross - cashItemDiscount) * discountPct / 100);
+  proposal.freight = (proposal.financial && proposal.financial.freightEnabled) ? round2(Math.max(0, Number(proposal.financial.freightValue || 0))) : 0;
+  proposal.totalWithoutFreight = round2(Math.max(0, gross - proposal.discount));
+  proposal.total = round2(proposal.totalWithoutFreight + proposal.freight);
+  proposal.totalWithoutInterest = round2(Math.max(0, cashGross - proposal.cashDiscount) + proposal.freight);
+  const entryPct = Number((proposal.financial && proposal.financial.entryPct) || 0);
+  const interest = Number((proposal.financial && proposal.financial.interestPct) || 0) / 100;
+  const count = Number((proposal.financial && proposal.financial.installments) || 0);
+  if (Array.isArray(proposal.financial.installmentSchedule) && proposal.financial.installmentSchedule.length) {
+    proposal.installments = proposal.financial.installmentSchedule
+      .filter((item) => Number(item.amount || 0) > 0 || item.date)
+      .map((item, index) => ({
+        label: item.label || `Parcela ${index + 1}`,
+        date: formatDate(item.date),
+        amount: Number(item.amount || 0)
+      }));
+  } else if (count > 0) {
+    const entry = proposal.total * entryPct / 100;
+    const financed = proposal.total - entry;
+    const totalWithInterest = entry + financed * Math.pow(1 + interest, count);
+    const parcelAmount = round2((totalWithInterest - entry) / count);
+    const baseDateValue = proposal.financial.entryDate || proposal.financial.firstInstallmentDate;
+    const baseDate = baseDateValue ? new Date(`${baseDateValue}T00:00:00`) : new Date();
+    proposal.installments = Array.from({ length: count }, (_, index) => {
+      const date = new Date(baseDate);
+      date.setMonth(date.getMonth() + index + 1);
+      const amount = index === count - 1 ? round2(totalWithInterest - entry - parcelAmount * (count - 1)) : parcelAmount;
+      return { label: `Parcela ${index + 1}`, date: date.toLocaleDateString("pt-BR"), amount };
+    });
+  } else {
+    proposal.installments = [];
+  }
+  proposal.updatedAt = new Date().toISOString();
+  proposal.updatedBy = user.id;
+  proposal.updatedByName = user.name;
+  return proposal;
+}
+
 async function handleApi(req, res, pathname) {
   if (req.method === "POST" && pathname === "/api/login") {
     const body = await readBody(req);
@@ -316,6 +410,20 @@ async function handleApi(req, res, pathname) {
     const db = readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso ao registro de atividades." });
     return send(res, 200, { activityLogs: (db.activityLogs || []).slice().reverse().slice(0, 200) });
+  }
+
+  if (req.method === "GET" && pathname === "/api/backup") {
+    const db = readDb();
+    if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso ao backup." });
+    return send(res, 200, db);
+  }
+
+  if (req.method === "POST" && pathname === "/api/backup") {
+    if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso ao backup." });
+    const body = await readBody(req);
+    if (!Array.isArray(body.users) || !Array.isArray(body.proposals)) return send(res, 400, { error: "Arquivo de backup invalido." });
+    writeDb(body);
+    return send(res, 200, { ok: true, users: body.users.length, proposals: body.proposals.length });
   }
 
   if (req.method === "POST" && pathname === "/api/users") {
@@ -478,6 +586,27 @@ async function handleApi(req, res, pathname) {
   }
 
   const proposalMatch = pathname.match(/^\/api\/proposals\/([^/]+)$/);
+  if ((req.method === "PATCH" || req.method === "PUT") && proposalMatch) {
+    const db = readDb();
+    const proposal = db.proposals.find((item) => item.id === proposalMatch[1]);
+    if (!proposal) return send(res, 404, { error: "Proposta nao encontrada." });
+    if (!can(user, "viewAll") && proposal.createdBy !== user.id && proposal.createdByName !== user.name) {
+      return send(res, 403, { error: "Voce nao tem acesso a esta proposta." });
+    }
+    if (!can(user, "discountOverride") && proposal.createdBy !== user.id) {
+      return send(res, 403, { error: "Somente o dono da proposta ou diretor pode editar." });
+    }
+    const body = await readBody(req);
+    const updated = normalizeProposalFromBody(proposal, body, user);
+    if (!updated.customer.name) return send(res, 400, { error: "Informe o cliente." });
+    if (!updated.items.length) return send(res, 400, { error: "Adicione ao menos um item." });
+    const index = db.proposals.findIndex((item) => item.id === proposalMatch[1]);
+    db.proposals[index] = updated;
+    addActivity(db, user, "proposta_alterada", { codigo: updated.code, cliente: updated.customer.name, total: updated.total });
+    writeDb(db);
+    return send(res, 200, { proposal: updated, proposals: visibleProposals(db, user).slice().reverse() });
+  }
+
   if (req.method === "DELETE" && proposalMatch) {
     const db = readDb();
     if (!can(user, "deleteProposals")) return send(res, 403, { error: "Voce nao tem permissao para excluir propostas." });

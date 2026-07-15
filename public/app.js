@@ -1,4 +1,4 @@
-const state = { user: null, products: [], proposals: [], users: [], clients: [], permissions: [], activityLogs: [], attachments: [] };
+const state = { user: null, products: [], proposals: [], users: [], clients: [], permissions: [], activityLogs: [], attachments: [], editingProposalId: null };
 const $ = (id) => document.getElementById(id);
 const round2 = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 const brl = (value) => round2(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -547,9 +547,10 @@ function renderHistory() {
     <tr>
       <td><b>${proposal.code}</b></td><td>${proposal.customer.name}<br><small>${proposal.customer.company || ""}</small></td>
       <td class="moneyCell">${brl(proposal.total)}</td><td>${proposal.createdByName}</td><td>${proposal.createdAtLabel}</td>
-      <td><div class="rowActions"><button class="secondaryBtn" data-pdf="${proposal.id}">PDF</button>${can("deleteProposals") ? `<button class="dangerTiny" data-delete-proposal="${proposal.id}">Excluir</button>` : ""}</div></td>
+      <td><div class="rowActions"><button class="secondaryBtn" data-edit-proposal="${proposal.id}">Editar</button><button class="secondaryBtn" data-pdf="${proposal.id}">PDF</button>${can("deleteProposals") ? `<button class="dangerTiny" data-delete-proposal="${proposal.id}">Excluir</button>` : ""}</div></td>
     </tr>`).join("");
   $("emptyHistory").style.display = state.proposals.length ? "none" : "block";
+  document.querySelectorAll("[data-edit-proposal]").forEach((button) => button.addEventListener("click", () => loadProposalForEdit(button.dataset.editProposal)));
   document.querySelectorAll("[data-pdf]").forEach((button) => button.addEventListener("click", () => window.open(`/api/proposals/${button.dataset.pdf}/pdf`, "_blank")));
   document.querySelectorAll("[data-delete-proposal]").forEach((button) => button.addEventListener("click", () => deleteProposal(button.dataset.deleteProposal)));
 }
@@ -590,9 +591,34 @@ function profileOptions(selected = "") {
   return options.map((profile) => `<option value="${profile}" ${profile === current ? "selected" : ""}>${profile}</option>`).join("");
 }
 
+function commissionRowsForProposal(proposal) {
+  const financial = proposal.financial || {};
+  const policy = commissionPolicies[financial.saleModel] || commissionPolicies.revenda;
+  const base = Number(proposal.totalWithoutFreight || proposal.total || 0);
+  const gross = (proposal.items || []).reduce((sum, item) => sum + Number(item.grossTotal || 0), 0);
+  const discountPct = gross > 0 ? Number(proposal.discount || 0) / gross * 100 : Number(financial.discountPct || 0);
+  const maxDiscount = Number(policy.maxDiscount || 0);
+  const discountOnCommission = Math.min(Math.max(0, discountPct), maxDiscount);
+  return policy.rows.map(([participant, pct, negotiable, floorPct]) => {
+    const minimum = Number(floorPct || 0);
+    const finalPct = negotiable && maxDiscount > 0
+      ? Math.max(minimum, pct - ((pct - minimum) * (discountOnCommission / maxDiscount)))
+      : pct;
+    return {
+      proposal,
+      base,
+      channel: financial.saleModelLabel || policy.label,
+      participant,
+      pct: finalPct,
+      commission: round2(base * finalPct / 100)
+    };
+  });
+}
+
 function renderCommissionsDashboard() {
   if (!$("commissionsGrid") || !can("commissions")) return;
   const bySeller = new Map();
+  const commissionDetails = [];
   state.proposals.forEach((proposal) => {
     const key = proposal.createdBy || proposal.createdByName || "sem-id";
     const user = state.users.find((item) => item.id === proposal.createdBy || item.name === proposal.createdByName) || {};
@@ -603,11 +629,13 @@ function renderCommissionsDashboard() {
       volume: 0,
       commission: 0
     };
+    const rows = commissionRowsForProposal(proposal);
+    commissionDetails.push(...rows);
     const volume = Number(proposal.totalWithoutFreight || proposal.total || 0);
-    const commissionPct = Number(proposal.financial?.commissionFinalPct || 0);
+    const commission = rows.reduce((sum, row) => sum + row.commission, 0);
     current.proposals += 1;
     current.volume += volume;
-    current.commission += volume * commissionPct / 100;
+    current.commission += commission;
     bySeller.set(key, current);
   });
   state.users.forEach((user) => {
@@ -679,6 +707,20 @@ function renderCommissionsDashboard() {
       refreshActivity();
     });
   });
+  if ($("commissionDetailsBody")) {
+    $("commissionDetailsBody").innerHTML = commissionDetails.map((row) => `
+      <tr>
+        <td><b>${row.proposal.code}</b></td>
+        <td>${row.proposal.customer?.name || ""}</td>
+        <td>${row.proposal.createdAtLabel || ""}</td>
+        <td>${row.proposal.createdByName || ""}</td>
+        <td>${row.channel}</td>
+        <td><b>${row.participant}</b></td>
+        <td class="moneyCell">${row.pct.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
+        <td class="moneyCell">${brl(row.base)}</td>
+        <td class="moneyCell">${brl(row.commission)}</td>
+      </tr>`).join("") || `<tr><td colspan="9" class="emptyState compact">As comissoes aparecem quando houver propostas salvas.</td></tr>`;
+  }
 }
 
 function renderUsers() {
@@ -766,10 +808,83 @@ async function refreshActivity() {
 
 function clearProposal() {
   ["customerName", "customerCompany", "customerDocument", "customerStateRegistration", "customerAddress", "customerZip", "customerPhone", "customerEmail", "customerCity"].forEach((id) => { if ($(id)) $(id).value = ""; });
+  state.editingProposalId = null;
   state.attachments = [];
   renderAttachments();
   $("itemsBody").innerHTML = "";
   addItem();
+  if ($("saveProposalBtn")) $("saveProposalBtn").textContent = "SALVAR";
+}
+
+function loadProposalForEdit(id) {
+  const proposal = state.proposals.find((item) => item.id === id);
+  if (!proposal) return;
+  state.editingProposalId = id;
+  const customer = proposal.customer || {};
+  const financial = proposal.financial || {};
+  const fields = {
+    customerName: customer.name,
+    customerCompany: customer.company,
+    customerDocument: customer.document,
+    customerStateRegistration: customer.stateRegistration,
+    customerAddress: customer.address,
+    customerZip: customer.zip,
+    customerPhone: customer.phone,
+    customerEmail: customer.email,
+    customerCity: customer.city,
+    proposalDate: customer.proposalDate,
+    payment: proposal.payment,
+    validity: proposal.validity,
+    notes: proposal.notes,
+    saleModel: financial.saleModel,
+    discountPct: financial.discountPct,
+    financeEntry: financial.entryPct,
+    entryDate: financial.entryDate,
+    financeInterest: financial.interestPct,
+    financeInstallments: financial.installments,
+    marginPct: financial.marginPct,
+    freightValue: financial.freightValue
+  };
+  Object.entries(fields).forEach(([id, value]) => {
+    if ($(id) && value !== undefined && value !== null) $(id).value = value;
+  });
+  if ($("freightEnabled")) $("freightEnabled").checked = !!financial.freightEnabled;
+  state.attachments = Array.isArray(proposal.attachments) ? proposal.attachments : [];
+  renderAttachments();
+  $("itemsBody").innerHTML = "";
+  (proposal.items || []).forEach((item) => {
+    const product = state.products.find((product) => product.linha === item.line && product.produto === item.product && String(product.tecnologia) === String(item.standard))
+      || state.products.find((product) => product.linha === item.line && product.produto === item.product)
+      || state.products[0];
+    addItem(product);
+    const row = $("itemsBody").querySelector("tr:last-child");
+    if (!row) return;
+    row.querySelector(".lineSelect").value = item.line || product.linha;
+    row.querySelector(".cultivarSelect").value = item.product || product.produto;
+    row.querySelector(".standardSelect").value = item.standard || product.tecnologia;
+    row.querySelector(".packageInput").value = item.package || product.apresentacao || "";
+    row.querySelector(".quantityInput").value = item.quantity || 0;
+    row.querySelector(".priceInput").value = Number(item.unitPrice || 0).toFixed(2);
+    row.querySelector(".itemDiscountInput").value = Number(item.discountPct || 0).toFixed(2);
+  });
+  if (!$("itemsBody").querySelector("tr")) addItem();
+  if (Array.isArray(financial.installmentSchedule) && financial.installmentSchedule.length) {
+    calculateTotals();
+    document.querySelectorAll(".installmentRow").forEach((row, index) => {
+      const item = financial.installmentSchedule[index];
+      if (!item) return;
+      const dateInput = row.querySelector(".installmentDateInput");
+      const amountInput = row.querySelector(".installmentAmountInput");
+      if (dateInput) dateInput.value = item.date || "";
+      if (amountInput) {
+        amountInput.value = Number(item.amount || 0).toFixed(2);
+        amountInput.dataset.manual = "true";
+      }
+    });
+  }
+  calculateTotals();
+  if ($("saveProposalBtn")) $("saveProposalBtn").textContent = `ATUALIZAR ${proposal.code}`;
+  showPage("proposal");
 }
 
 async function saveProposal(options = {}) {
@@ -797,8 +912,11 @@ async function saveProposal(options = {}) {
     attachments: state.attachments
   };
   try {
-    const data = await api("/api/proposals", { method: "POST", body: JSON.stringify(payload) });
-    state.proposals.unshift(data.proposal);
+    const method = state.editingProposalId ? "PUT" : "POST";
+    const path = state.editingProposalId ? `/api/proposals/${state.editingProposalId}` : "/api/proposals";
+    const data = await api(path, { method, body: JSON.stringify(payload) });
+    if (state.editingProposalId) state.proposals = data.proposals || state.proposals.map((item) => item.id === data.proposal.id ? data.proposal : item);
+    else state.proposals.unshift(data.proposal);
     renderAll(data.nextCode);
     clearProposal();
     showPage("history");
@@ -867,6 +985,25 @@ async function deleteProposal(id) {
   const data = await api(`/api/proposals/${id}`, { method: "DELETE" });
   state.proposals = data.proposals;
   renderAll();
+}
+
+async function downloadBackup() {
+  const data = await api("/api/backup");
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `backup-riza-agro-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+async function restoreBackup(file) {
+  if (!file) return;
+  if (!confirm("Restaurar este backup vai substituir usuarios e propostas atuais. Continuar?")) return;
+  const content = await file.text();
+  const data = await api("/api/backup", { method: "POST", body: content });
+  alert(`Backup restaurado: ${data.users} usuarios e ${data.proposals} propostas.`);
+  location.reload();
 }
 
 function fileToAttachment(file) {
@@ -1065,6 +1202,8 @@ if ($("pdfTopBtn")) $("pdfTopBtn").addEventListener("click", () => saveProposal(
 if ($("pdfBottomBtn")) $("pdfBottomBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
 if ($("createUserBtn")) $("createUserBtn").addEventListener("click", createUser);
 if ($("createCommissionUserBtn")) $("createCommissionUserBtn").addEventListener("click", createCommissionUser);
+if ($("downloadBackupBtn")) $("downloadBackupBtn").addEventListener("click", downloadBackup);
+if ($("restoreBackupInput")) $("restoreBackupInput").addEventListener("change", (event) => restoreBackup(event.target.files[0]));
 if ($("refreshActivityBtn")) $("refreshActivityBtn").addEventListener("click", refreshActivity);
 if ($("attachmentInput")) $("attachmentInput").addEventListener("change", (event) => addAttachments(event.target.files));
 [

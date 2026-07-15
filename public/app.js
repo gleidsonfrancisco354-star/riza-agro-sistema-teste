@@ -38,7 +38,7 @@ const commissionPolicies = {
     autoItemDiscount: 0,
     rows: [
       ["Representante Comercial", 10.00, true, 1.00],
-      ["Coordenador Regional", 2.50, true, 1.00],
+      ["Coordenador Regional", 2.50, true, 1.50],
       ["Gerente Nacional de Vendas", 1.00, false],
       ["Retaguarda Comercial", 0.10, false],
       ["Gerente de Planejamento", 0.25, false],
@@ -363,7 +363,8 @@ function renderMiniProducts(target, products) {
   if (!$(target)) return;
   $(target).innerHTML = products.map((product) => {
     const index = state.products.indexOf(product);
-    return `<tr><td>${cleanText(product.linha)} | ${cleanText(product.produto)}</td><td>${cleanText(product.tecnologia)}</td><td>${cleanText(product.apresentacao)}</td><td class="moneyCell">${brl(product.preco)}</td><td><button class="addMiniBtn" data-add-product="${index}">Incluir</button></td></tr>`;
+    const packageText = cleanText(product.apresentacao).replace(/^Saco\s+/i, "");
+    return `<tr><td><b>${cleanText(product.produto)}</b></td><td>${cleanText(product.tecnologia)}</td><td>${packageText}</td><td class="moneyCell">${brl(product.preco)}</td><td><button class="addMiniBtn" data-add-product="${index}">+</button></td></tr>`;
   }).join("");
   $(target).querySelectorAll("[data-add-product]").forEach((button) => button.addEventListener("click", () => addItem(state.products[Number(button.dataset.addProduct)])));
 }
@@ -373,17 +374,16 @@ function addItem(product = state.products[0]) {
   const tr = document.createElement("tr");
   const lineOptions = uniqueValues(state.products, "linha").map((line) => `<option value="${line}">${cleanText(line)}</option>`).join("");
   tr.innerHTML = `
-    <td><select class="lineSelect">${lineOptions}</select></td>
-    <td><select class="cultivarSelect"></select></td>
+    <td class="cultivarCell"><select class="cultivarSelect"></select><select class="lineSelect">${lineOptions}</select></td>
     <td><select class="standardSelect"></select></td>
     <td><input class="packageInput" value="${product.apresentacao || ""}"></td>
     <td><input class="quantityInput" type="number" min="0" step="1" value="1"></td>
-    <td>UN</td>
+    <td class="unitCell">kg</td>
     <td><input class="priceInput" type="number" min="0" step="0.01" value="${product.preco || 0}"></td>
     <td><input class="itemDiscountInput" type="number" min="0" max="100" step="0.01" value="0"></td>
     <td class="discountedUnitCell">R$ 0,00</td>
     <td class="totalCell">R$ 0,00</td>
-    <td><button type="button" class="removeBtn">Remover</button></td>`;
+    <td><button type="button" class="removeBtn">x</button></td>`;
   const lineSelect = tr.querySelector(".lineSelect");
   const cultivarSelect = tr.querySelector(".cultivarSelect");
   const standardSelect = tr.querySelector(".standardSelect");

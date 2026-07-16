@@ -221,25 +221,43 @@ function getCommissionPolicy() {
   return commissionPolicies[$("saleModel")?.value] || commissionPolicies.revenda;
 }
 
+function integerDiscount(value) {
+  const number = Math.round(Number(value || 0));
+  return Math.max(0, Number.isFinite(number) ? number : 0);
+}
+
+function discountLimitForCurrentUser(policy) {
+  const saleModel = $("saleModel")?.value || "revenda";
+  if (saleModel === "revenda") return 10;
+  return can("discountOverride") ? 30 : Number(policy.maxDiscount || 0);
+}
+
 function applySaleModelRules() {
   const policy = getCommissionPolicy();
-  const canOverride = can("discountOverride");
-  const maxDiscount = canOverride ? 100 : Number(policy.maxDiscount || 0);
-  const autoDiscount = canOverride ? 0 : Number(policy.autoItemDiscount || 0);
+  const saleModel = $("saleModel")?.value || "revenda";
+  const maxDiscount = discountLimitForCurrentUser(policy);
+  const autoDiscount = saleModel === "revenda" ? 10 : 0;
   if ($("discountPct")) {
+    $("discountPct").min = "0";
     $("discountPct").max = String(maxDiscount);
+    $("discountPct").step = "1";
     if (autoDiscount > 0) {
       $("discountPct").value = "0";
       $("discountPct").disabled = true;
+      $("discountPct").title = "Revenda aplica 10% de desconto direto nos itens.";
     } else {
       $("discountPct").disabled = false;
-      if (Number($("discountPct").value || 0) > maxDiscount) $("discountPct").value = String(maxDiscount);
+      const current = integerDiscount($("discountPct").value);
+      $("discountPct").value = String(Math.min(current, maxDiscount));
+      $("discountPct").title = `Desconto maximo deste canal: ${maxDiscount}%`;
     }
   }
   $("itemsBody")?.querySelectorAll(".itemDiscountInput").forEach((input) => {
+    input.min = "0";
     input.max = String(maxDiscount);
+    input.step = "1";
     if (autoDiscount > 0) {
-      input.value = autoDiscount.toFixed(2);
+      input.value = String(autoDiscount);
       input.readOnly = true;
       input.dataset.autoDiscount = "true";
       input.title = "Revenda aplica desconto automatico de 10%.";
@@ -248,7 +266,7 @@ function applySaleModelRules() {
       delete input.dataset.autoDiscount;
       input.readOnly = false;
       input.title = `Desconto maximo deste canal: ${maxDiscount}%`;
-      if (Number(input.value || 0) > maxDiscount) input.value = String(maxDiscount);
+      input.value = String(Math.min(integerDiscount(input.value), maxDiscount));
     }
   });
 }
@@ -380,7 +398,7 @@ function addItem(product = state.products[0]) {
     <td><input class="quantityInput" type="number" min="0" step="1" value="1"></td>
     <td class="unitCell">kg</td>
     <td><input class="priceInput" type="number" min="0" step="0.01" value="${product.preco || 0}"></td>
-    <td><input class="itemDiscountInput" type="number" min="0" max="100" step="0.01" value="0"></td>
+    <td><input class="itemDiscountInput" type="number" min="0" max="10" step="1" value="0"></td>
     <td class="discountedUnitCell">R$ 0,00</td>
     <td class="totalCell">R$ 0,00</td>
     <td><button type="button" class="removeBtn">x</button></td>`;
@@ -439,7 +457,7 @@ function readItems() {
     const quantity = Number(tr.querySelector(".quantityInput").value || 0);
     const unitPrice = Number(tr.querySelector(".priceInput").value || 0);
     const cashUnitPrice = Number(selected.preco || unitPrice);
-    const discountPct = Number(tr.querySelector(".itemDiscountInput")?.value || 0);
+    const discountPct = integerDiscount(tr.querySelector(".itemDiscountInput")?.value || 0);
     const discountedUnitPrice = round2(Math.max(0, unitPrice - unitPrice * discountPct / 100));
     const grossTotal = quantity * unitPrice;
     const grossCashTotal = quantity * cashUnitPrice;
@@ -480,7 +498,7 @@ function calculateTotals() {
     const qty = Number(tr.querySelector(".quantityInput").value || 0);
     const unitPrice = Number(tr.querySelector(".priceInput").value || 0);
     const cashUnitPrice = Number(selected.preco || unitPrice);
-    const itemDiscountPct = Number(tr.querySelector(".itemDiscountInput")?.value || 0);
+    const itemDiscountPct = integerDiscount(tr.querySelector(".itemDiscountInput")?.value || 0);
     const grossLine = round2(qty * unitPrice);
     const cashGrossLine = round2(qty * cashUnitPrice);
     const itemDiscount = round2(grossLine * itemDiscountPct / 100);
@@ -497,8 +515,8 @@ function calculateTotals() {
     cashItemDiscountTotal += cashItemDiscount;
   });
   const policy = getCommissionPolicy();
-  const maxDiscount = Number(policy.maxDiscount || 0);
-  const discountPct = Math.min(Math.max(0, Number($("discountPct")?.value || 0)), maxDiscount);
+  const maxDiscount = discountLimitForCurrentUser(policy);
+  const discountPct = Math.min(integerDiscount($("discountPct")?.value || 0), maxDiscount);
   const freight = $("freightEnabled")?.checked ? round2(Math.max(0, Number($("freightValue")?.value || 0))) : 0;
   grossTotal = round2(grossTotal);
   cashGrossTotal = round2(cashGrossTotal);
@@ -1052,7 +1070,7 @@ async function addAttachments(files) {
 function collectFinancial() {
   const freight = $("freightEnabled")?.checked ? round2(Math.max(0, Number($("freightValue")?.value || 0))) : 0;
   return {
-    discountPct: Number($("discountPct")?.value || 0),
+    discountPct: Math.min(integerDiscount($("discountPct")?.value || 0), discountLimitForCurrentUser(getCommissionPolicy())),
     entryPct: Number($("financeEntry")?.value || 0),
     entryDate: $("entryDate")?.value || "",
     interestPct: Number($("financeInterest")?.value || 0),

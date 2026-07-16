@@ -56,6 +56,18 @@
     </form>
   </section>
 
+  <section id="passwordModal" class="passwordModal hidden">
+    <form id="passwordForm" class="passwordCard">
+      <small>Primeiro acesso</small>
+      <h2>Troque sua senha provisoria</h2>
+      <p>Para proteger sua conta, defina uma nova senha antes de continuar.</p>
+      <label>Nova senha<input id="newPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Minimo 6 caracteres"></label>
+      <label>Confirmar nova senha<input id="confirmPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Repita a senha"></label>
+      <button type="submit" class="primaryBtn">Salvar nova senha</button>
+      <div id="passwordError" class="error"></div>
+    </form>
+  </section>
+
   <section id="appView" class="appShell hidden">
     <aside class="sidebar">
       <div class="sideLogo"><img src="./assets/logo-riza-agro.jpeg" alt="Riza Agro"></div>

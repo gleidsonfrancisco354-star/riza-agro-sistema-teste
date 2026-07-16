@@ -735,6 +735,7 @@ function renderUsers() {
         <label>Perfil<select class="editUserRole">${profileOptions(user.role)}</select></label>
         <label>Nova senha<input class="editUserPassword" placeholder="Manter senha atual"></label>
         <label class="check statusCheck"><input class="editUserActive" type="checkbox" ${user.active ? "checked" : ""}>Usuario ativo</label>
+        <label class="check statusCheck"><input class="editUserMustChange" type="checkbox" ${user.mustChangePassword ? "checked" : ""}>Senha provisoria</label>
       </div>
       <div class="permGrid">${permissionCheckboxes(user.permissions || [])}</div>
       <div class="rowActions"><button class="secondaryBtn savePermBtn">Salvar usuario</button><button class="dangerTiny deleteUserBtn">Excluir usuario</button></div>
@@ -751,6 +752,7 @@ function renderUsers() {
         email: card.querySelector(".editUserEmail").value.trim(),
         role: card.querySelector(".editUserRole").value.trim(),
         active: card.querySelector(".editUserActive").checked,
+        mustChangePassword: card.querySelector(".editUserMustChange").checked,
         permissions
       };
       const password = card.querySelector(".editUserPassword").value;
@@ -942,6 +944,7 @@ async function createUser() {
         email: $("newUserEmail").value.trim(),
         password: $("newUserPassword").value,
         role: $("newUserRole").value.trim(),
+        mustChangePassword: true,
         permissions
       })
     });
@@ -966,6 +969,7 @@ async function createCommissionUser() {
         email: $("commissionUserEmail").value.trim(),
         password: $("commissionUserPassword").value || "123456",
         role: $("commissionUserRole").value,
+        mustChangePassword: true,
         permissions: profilePermissions[$("commissionUserRole").value] || profilePermissions["Representante Comercial"]
       })
     });
@@ -1163,6 +1167,40 @@ function renderAll(nextCode) {
   renderActivity();
 }
 
+function showPasswordModal() {
+  if (!$("passwordModal")) return;
+  $("passwordModal").classList.remove("hidden");
+  if ($("newPassword")) $("newPassword").focus();
+}
+
+function hidePasswordModal() {
+  if ($("passwordModal")) $("passwordModal").classList.add("hidden");
+  if ($("newPassword")) $("newPassword").value = "";
+  if ($("confirmPassword")) $("confirmPassword").value = "";
+  if ($("passwordError")) $("passwordError").textContent = "";
+}
+
+async function changePassword(event) {
+  event.preventDefault();
+  $("passwordError").textContent = "";
+  try {
+    const data = await api("/api/change-password", {
+      method: "POST",
+      body: JSON.stringify({
+        newPassword: $("newPassword").value,
+        confirmPassword: $("confirmPassword").value
+      })
+    });
+    state.user = data.user;
+    $("userName").textContent = state.user.name;
+    $("userRole").textContent = state.user.role;
+    hidePasswordModal();
+    alert("Senha alterada com sucesso.");
+  } catch (error) {
+    $("passwordError").textContent = error.message;
+  }
+}
+
 async function boot() {
   if (location.protocol === "file:") return showFileModeMessage();
   try {
@@ -1178,6 +1216,7 @@ async function boot() {
     if ($("proposalDate")) $("proposalDate").valueAsDate = new Date();
     if ($("entryDate")) $("entryDate").valueAsDate = new Date();
     showPage(can("dashboard") ? "dashboard" : state.user.permissions[0]);
+    if (state.user.mustChangePassword) showPasswordModal();
   } catch {
     $("loginView").classList.remove("hidden");
   }
@@ -1206,6 +1245,7 @@ if ($("downloadBackupBtn")) $("downloadBackupBtn").addEventListener("click", dow
 if ($("restoreBackupInput")) $("restoreBackupInput").addEventListener("change", (event) => restoreBackup(event.target.files[0]));
 if ($("refreshActivityBtn")) $("refreshActivityBtn").addEventListener("click", refreshActivity);
 if ($("attachmentInput")) $("attachmentInput").addEventListener("change", (event) => addAttachments(event.target.files));
+if ($("passwordForm")) $("passwordForm").addEventListener("submit", changePassword);
 [
   ["customerDocument", maskCpfCnpj],
   ["customerZip", maskCep],

@@ -1168,7 +1168,22 @@ function renderAll(nextCode) {
 }
 
 function showPasswordModal() {
-  if (!$("passwordModal")) return;
+  if (!$("passwordModal")) {
+    document.body.insertAdjacentHTML("beforeend", `
+      <section id="passwordModal" class="passwordModal hidden">
+        <form id="passwordForm" class="passwordCard">
+          <small>Primeiro acesso</small>
+          <h2>Troque sua senha provisoria</h2>
+          <p>Para proteger sua conta, defina uma nova senha antes de continuar.</p>
+          <label>Nova senha<input id="newPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Minimo 6 caracteres"></label>
+          <label>Confirmar nova senha<input id="confirmPassword" type="password" autocomplete="new-password" minlength="6" placeholder="Repita a senha"></label>
+          <button type="submit" class="primaryBtn">Salvar nova senha</button>
+          <div id="passwordError" class="error"></div>
+        </form>
+      </section>
+    `);
+    $("passwordForm").addEventListener("submit", changePassword);
+  }
   $("passwordModal").classList.remove("hidden");
   if ($("newPassword")) $("newPassword").focus();
 }

@@ -39,6 +39,20 @@ function readSeedDb() {
   return JSON.parse(fs.readFileSync(seedDbPath, "utf8"));
 }
 
+function normalizeDb(db) {
+  db.users = Array.isArray(db.users) ? db.users : [];
+  db.proposals = Array.isArray(db.proposals) ? db.proposals : [];
+  db.clients = Array.isArray(db.clients) ? db.clients : [];
+  db.activityLogs = Array.isArray(db.activityLogs) ? db.activityLogs : [];
+  db.nextProposalNumber = Number(db.nextProposalNumber || 1);
+  db.users.forEach((user) => {
+    if (user.mustChangePassword === undefined) {
+      user.mustChangePassword = !isDirector(user) && String(user.password || "") === "123456";
+    }
+  });
+  return db;
+}
+
 function getPgPool() {
   if (!databaseUrl) return null;
   if (!pgPool) {
@@ -63,7 +77,7 @@ async function ensurePgStore() {
   `);
   const existing = await pool.query("SELECT id FROM riza_app_state WHERE id = $1", ["main"]);
   if (!existing.rowCount) {
-    await pool.query("INSERT INTO riza_app_state (id, data) VALUES ($1, $2)", ["main", readSeedDb()]);
+    await pool.query("INSERT INTO riza_app_state (id, data) VALUES ($1, $2)", ["main", normalizeDb(readSeedDb())]);
   }
   pgReady = true;
 }
@@ -72,13 +86,14 @@ async function readDb() {
   if (databaseUrl) {
     await ensurePgStore();
     const result = await getPgPool().query("SELECT data FROM riza_app_state WHERE id = $1", ["main"]);
-    return result.rows[0]?.data || readSeedDb();
+    return normalizeDb(result.rows[0]?.data || readSeedDb());
   }
   ensureDataStore();
-  return JSON.parse(fs.readFileSync(dbPath, "utf8"));
+  return normalizeDb(JSON.parse(fs.readFileSync(dbPath, "utf8")));
 }
 
 async function writeDb(db) {
+  db = normalizeDb(db);
   if (databaseUrl) {
     await ensurePgStore();
     await getPgPool().query(
@@ -124,6 +139,7 @@ function publicUser(user) {
     email: user.email,
     role: user.role,
     active: user.active !== false,
+    mustChangePassword: !!user.mustChangePassword,
     permissions
   };
 }
@@ -420,6 +436,25 @@ async function handleApi(req, res, pathname) {
     return send(res, 200, { user });
   }
 
+  if (req.method === "POST" && pathname === "/api/change-password") {
+    const body = await readBody(req);
+    const newPassword = String(body.newPassword || "");
+    const confirmPassword = String(body.confirmPassword || "");
+    if (newPassword.length < 6) return send(res, 400, { error: "A nova senha precisa ter pelo menos 6 caracteres." });
+    if (newPassword !== confirmPassword) return send(res, 400, { error: "As senhas nao conferem." });
+    const db = await readDb();
+    const target = db.users.find((item) => item.id === user.id);
+    if (!target) return send(res, 404, { error: "Usuario nao encontrado." });
+    target.password = newPassword;
+    target.mustChangePassword = false;
+    addActivity(db, user, "senha_alterada", { usuario: target.name, message: "Senha alterada pelo usuario" });
+    await writeDb(db);
+    const safeUser = publicUser(target);
+    const token = parseCookies(req).riza_session;
+    if (token) sessions.set(token, safeUser);
+    return send(res, 200, { user: safeUser });
+  }
+
   if (req.method === "GET" && pathname === "/api/bootstrap") {
     const db = await readDb();
     const products = readProducts();
@@ -488,6 +523,7 @@ async function handleApi(req, res, pathname) {
       password: body.password,
       role: body.role || "Consultor",
       active: true,
+      mustChangePassword: body.mustChangePassword !== false,
       permissions: Array.isArray(body.permissions) ? body.permissions : ["dashboard", "proposal", "history"]
     };
     db.users.push(newUser);
@@ -503,9 +539,15 @@ async function handleApi(req, res, pathname) {
     const body = await readBody(req);
     const target = db.users.find((item) => item.id === userMatch[1]);
     if (!target) return send(res, 404, { error: "Usuario nao encontrado." });
-    ["name", "email", "role", "password"].forEach((field) => {
+    ["name", "email", "role"].forEach((field) => {
       if (body[field] !== undefined && body[field] !== "") target[field] = body[field];
     });
+    if (body.password !== undefined && body.password !== "") {
+      target.password = body.password;
+      target.mustChangePassword = body.mustChangePassword !== false;
+    } else if (body.mustChangePassword !== undefined) {
+      target.mustChangePassword = !!body.mustChangePassword;
+    }
     if (body.active !== undefined) target.active = !!body.active;
     if (Array.isArray(body.permissions)) target.permissions = body.permissions.filter((item) => allPermissions.includes(item));
     addActivity(db, user, "usuario_alterado", { usuario: target.name, email: target.email, ativo: target.active !== false });

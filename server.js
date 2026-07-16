@@ -10,6 +10,9 @@ const dataDir = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : defa
 const dbPath = path.join(dataDir, "db.json");
 const seedDbPath = path.join(defaultDataDir, "db.json");
 const productsPath = path.join(root, "data", "products.json");
+const databaseUrl = process.env.DATABASE_URL || "";
+let pgPool = null;
+let pgReady = false;
 const sessions = new Map();
 const allPermissions = [
   "dashboard", "proposal", "rizaPlus", "virtus", "finance", "clients", "products", "history", "reports", "commissions", "users",
@@ -32,12 +35,58 @@ function ensureDataStore() {
   if (!fs.existsSync(dbPath)) fs.copyFileSync(seedDbPath, dbPath);
 }
 
-function readDb() {
+function readSeedDb() {
+  return JSON.parse(fs.readFileSync(seedDbPath, "utf8"));
+}
+
+function getPgPool() {
+  if (!databaseUrl) return null;
+  if (!pgPool) {
+    const { Pool } = require("pg");
+    pgPool = new Pool({
+      connectionString: databaseUrl,
+      ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false }
+    });
+  }
+  return pgPool;
+}
+
+async function ensurePgStore() {
+  const pool = getPgPool();
+  if (!pool || pgReady) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS riza_app_state (
+      id TEXT PRIMARY KEY,
+      data JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  const existing = await pool.query("SELECT id FROM riza_app_state WHERE id = $1", ["main"]);
+  if (!existing.rowCount) {
+    await pool.query("INSERT INTO riza_app_state (id, data) VALUES ($1, $2)", ["main", readSeedDb()]);
+  }
+  pgReady = true;
+}
+
+async function readDb() {
+  if (databaseUrl) {
+    await ensurePgStore();
+    const result = await getPgPool().query("SELECT data FROM riza_app_state WHERE id = $1", ["main"]);
+    return result.rows[0]?.data || readSeedDb();
+  }
   ensureDataStore();
   return JSON.parse(fs.readFileSync(dbPath, "utf8"));
 }
 
-function writeDb(db) {
+async function writeDb(db) {
+  if (databaseUrl) {
+    await ensurePgStore();
+    await getPgPool().query(
+      "UPDATE riza_app_state SET data = $2, updated_at = NOW() WHERE id = $1",
+      ["main", db]
+    );
+    return;
+  }
   ensureDataStore();
   fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), "utf8");
 }
@@ -339,14 +388,14 @@ function normalizeProposalFromBody(baseProposal, body, user) {
 async function handleApi(req, res, pathname) {
   if (req.method === "POST" && pathname === "/api/login") {
     const body = await readBody(req);
-    const db = readDb();
+    const db = await readDb();
     const user = db.users.find((item) => item.email === body.email && item.password === body.password && item.active !== false);
     if (!user) return send(res, 401, { error: "E-mail ou senha invalidos." });
     const token = crypto.randomBytes(24).toString("hex");
     const safeUser = publicUser(user);
     sessions.set(token, safeUser);
     addActivity(db, safeUser, "login", { message: "Entrou no sistema" });
-    writeDb(db);
+    await writeDb(db);
     res.setHeader("Set-Cookie", `riza_session=${token}; HttpOnly; Path=/; SameSite=Lax`);
     return send(res, 200, { user: safeUser });
   }
@@ -356,9 +405,9 @@ async function handleApi(req, res, pathname) {
     const logoutUser = token ? sessions.get(token) : null;
     if (token) sessions.delete(token);
     if (logoutUser) {
-      const db = readDb();
+      const db = await readDb();
       addActivity(db, logoutUser, "logout", { message: "Saiu do sistema" });
-      writeDb(db);
+      await writeDb(db);
     }
     res.setHeader("Set-Cookie", "riza_session=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax");
     return send(res, 200, { ok: true });
@@ -372,7 +421,7 @@ async function handleApi(req, res, pathname) {
   }
 
   if (req.method === "GET" && pathname === "/api/bootstrap") {
-    const db = readDb();
+    const db = await readDb();
     const products = readProducts();
     const proposals = visibleProposals(db, user);
     return send(res, 200, {
@@ -388,7 +437,7 @@ async function handleApi(req, res, pathname) {
   }
 
   if (req.method === "GET" && pathname === "/api/proposals") {
-    const db = readDb();
+    const db = await readDb();
     const proposals = visibleProposals(db, user);
     return send(res, 200, {
       nextCode: proposalCode(db.nextProposalNumber),
@@ -401,19 +450,19 @@ async function handleApi(req, res, pathname) {
   }
 
   if (req.method === "GET" && pathname === "/api/users") {
-    const db = readDb();
+    const db = await readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso a usuarios." });
     return send(res, 200, { users: db.users.map(publicUser), permissions: allPermissions });
   }
 
   if (req.method === "GET" && pathname === "/api/activity") {
-    const db = readDb();
+    const db = await readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso ao registro de atividades." });
     return send(res, 200, { activityLogs: (db.activityLogs || []).slice().reverse().slice(0, 200) });
   }
 
   if (req.method === "GET" && pathname === "/api/backup") {
-    const db = readDb();
+    const db = await readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso ao backup." });
     return send(res, 200, db);
   }
@@ -422,12 +471,12 @@ async function handleApi(req, res, pathname) {
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso ao backup." });
     const body = await readBody(req);
     if (!Array.isArray(body.users) || !Array.isArray(body.proposals)) return send(res, 400, { error: "Arquivo de backup invalido." });
-    writeDb(body);
+    await writeDb(body);
     return send(res, 200, { ok: true, users: body.users.length, proposals: body.proposals.length });
   }
 
   if (req.method === "POST" && pathname === "/api/users") {
-    const db = readDb();
+    const db = await readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso a usuarios." });
     const body = await readBody(req);
     if (!body.name || !body.email || !body.password) return send(res, 400, { error: "Informe nome, e-mail e senha." });
@@ -443,13 +492,13 @@ async function handleApi(req, res, pathname) {
     };
     db.users.push(newUser);
     addActivity(db, user, "usuario_criado", { usuario: newUser.name, email: newUser.email, perfil: newUser.role });
-    writeDb(db);
+    await writeDb(db);
     return send(res, 201, { user: publicUser(newUser), users: db.users.map(publicUser) });
   }
 
   const userMatch = pathname.match(/^\/api\/users\/([^/]+)$/);
   if ((req.method === "PATCH" || req.method === "PUT") && userMatch) {
-    const db = readDb();
+    const db = await readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso a usuarios." });
     const body = await readBody(req);
     const target = db.users.find((item) => item.id === userMatch[1]);
@@ -460,12 +509,12 @@ async function handleApi(req, res, pathname) {
     if (body.active !== undefined) target.active = !!body.active;
     if (Array.isArray(body.permissions)) target.permissions = body.permissions.filter((item) => allPermissions.includes(item));
     addActivity(db, user, "usuario_alterado", { usuario: target.name, email: target.email, ativo: target.active !== false });
-    writeDb(db);
+    await writeDb(db);
     return send(res, 200, { user: publicUser(target), users: db.users.map(publicUser) });
   }
 
   if (req.method === "DELETE" && userMatch) {
-    const db = readDb();
+    const db = await readDb();
     if (!can(user, "users")) return send(res, 403, { error: "Voce nao tem acesso a usuarios." });
     if (userMatch[1] === user.id) return send(res, 400, { error: "Voce nao pode excluir o usuario logado." });
     const deletedUser = db.users.find((item) => item.id === userMatch[1]);
@@ -473,13 +522,13 @@ async function handleApi(req, res, pathname) {
     db.users = db.users.filter((item) => item.id !== userMatch[1]);
     if (db.users.length === before) return send(res, 404, { error: "Usuario nao encontrado." });
     addActivity(db, user, "usuario_excluido", { usuario: deletedUser?.name || userMatch[1], email: deletedUser?.email || "" });
-    writeDb(db);
+    await writeDb(db);
     return send(res, 200, { users: db.users.map(publicUser) });
   }
 
   if (req.method === "POST" && pathname === "/api/proposals") {
     const body = await readBody(req);
-    const db = readDb();
+    const db = await readDb();
     const number = db.nextProposalNumber++;
     const now = new Date();
     const proposal = {
@@ -570,13 +619,13 @@ async function handleApi(req, res, pathname) {
     if (!proposal.items.length) return send(res, 400, { error: "Adicione ao menos um item." });
     db.proposals.push(proposal);
     addActivity(db, user, "proposta_salva", { codigo: proposal.code, cliente: proposal.customer.name, total: proposal.total });
-    writeDb(db);
+    await writeDb(db);
     return send(res, 201, { proposal, nextCode: proposalCode(db.nextProposalNumber) });
   }
 
   const pdfMatch = pathname.match(/^\/api\/proposals\/([^/]+)\/pdf$/);
   if (req.method === "GET" && pdfMatch) {
-    const db = readDb();
+    const db = await readDb();
     const proposal = db.proposals.find((item) => item.id === pdfMatch[1]);
     if (!proposal) return send(res, 404, "Proposta nao encontrada.", "text/plain; charset=utf-8");
     if (!can(user, "viewAll") && proposal.createdBy !== user.id && proposal.createdByName !== user.name) {
@@ -587,7 +636,7 @@ async function handleApi(req, res, pathname) {
 
   const proposalMatch = pathname.match(/^\/api\/proposals\/([^/]+)$/);
   if ((req.method === "PATCH" || req.method === "PUT") && proposalMatch) {
-    const db = readDb();
+    const db = await readDb();
     const proposal = db.proposals.find((item) => item.id === proposalMatch[1]);
     if (!proposal) return send(res, 404, { error: "Proposta nao encontrada." });
     if (!can(user, "viewAll") && proposal.createdBy !== user.id && proposal.createdByName !== user.name) {
@@ -603,26 +652,26 @@ async function handleApi(req, res, pathname) {
     const index = db.proposals.findIndex((item) => item.id === proposalMatch[1]);
     db.proposals[index] = updated;
     addActivity(db, user, "proposta_alterada", { codigo: updated.code, cliente: updated.customer.name, total: updated.total });
-    writeDb(db);
+    await writeDb(db);
     return send(res, 200, { proposal: updated, proposals: visibleProposals(db, user).slice().reverse() });
   }
 
   if (req.method === "DELETE" && proposalMatch) {
-    const db = readDb();
+    const db = await readDb();
     if (!can(user, "deleteProposals")) return send(res, 403, { error: "Voce nao tem permissao para excluir propostas." });
     const deletedProposal = db.proposals.find((item) => item.id === proposalMatch[1]);
     const before = db.proposals.length;
     db.proposals = db.proposals.filter((item) => item.id !== proposalMatch[1]);
     if (db.proposals.length === before) return send(res, 404, { error: "Proposta nao encontrada." });
     addActivity(db, user, "proposta_excluida", { codigo: deletedProposal?.code || proposalMatch[1], cliente: deletedProposal?.customer?.name || "" });
-    writeDb(db);
+    await writeDb(db);
     return send(res, 200, { proposals: visibleProposals(db, user).slice().reverse() });
   }
 
   return send(res, 404, { error: "Rota nao encontrada." });
 }
 
-function serveStatic(req, res, pathname) {
+async function serveStatic(req, res, pathname) {
   const cleanPath = pathname === "/" ? "/index.html" : pathname;
   const protectedPages = ["/dashboard-oficial.html", "/platform-admin.html"];
   const user = currentUser(req);
@@ -633,9 +682,9 @@ function serveStatic(req, res, pathname) {
   }
   if (protectedPages.includes(cleanPath)) {
     try {
-      const db = readDb();
+      const db = await readDb();
       addActivity(db, user, cleanPath === "/dashboard-oficial.html" ? "abriu_dashboard" : "abriu_admin", { pagina: cleanPath });
-      writeDb(db);
+      await writeDb(db);
     } catch {}
   }
   const filePath = path.normalize(path.join(publicDir, cleanPath));
@@ -650,7 +699,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname.startsWith("/api/")) return await handleApi(req, res, url.pathname);
-    serveStatic(req, res, url.pathname);
+    await serveStatic(req, res, url.pathname);
   } catch (error) {
     send(res, 500, { error: error.message || "Erro interno." });
   }
@@ -660,3 +709,4 @@ const port = Number(process.env.PORT || 8787);
 server.listen(port, () => {
   console.log(`Riza Agro teste rodando em http://localhost:${port}`);
 });
+

@@ -737,6 +737,28 @@ async function handleApi(req, res, pathname) {
     return send(res, 200, pdfHtml(proposal), "text/html; charset=utf-8");
   }
 
+  const orderMatch = pathname.match(/^\/api\/proposals\/([^/]+)\/order$/);
+  if (req.method === "POST" && orderMatch) {
+    const db = await readDb();
+    const proposal = db.proposals.find((item) => item.id === orderMatch[1]);
+    if (!proposal) return send(res, 404, { error: "Proposta nao encontrada." });
+    if (!can(user, "viewAll") && proposal.createdBy !== user.id && proposal.createdByName !== user.name) {
+      return send(res, 403, { error: "Voce nao tem acesso a esta proposta." });
+    }
+    const now = new Date();
+    proposal.status = "Pedido";
+    proposal.orderCreatedAt = proposal.orderCreatedAt || now.toISOString();
+    proposal.orderCreatedAtLabel = proposal.orderCreatedAtLabel || now.toLocaleString("pt-BR");
+    proposal.orderCreatedBy = user.id;
+    proposal.orderCreatedByName = user.name;
+    proposal.updatedAt = now.toISOString();
+    proposal.updatedBy = user.id;
+    proposal.updatedByName = user.name;
+    addActivity(db, user, "pedido_gerado", { codigo: proposal.code, cliente: proposal.customer?.name || "", total: proposal.total });
+    await writeDb(db);
+    return send(res, 200, { proposal, proposals: visibleProposals(db, user).slice().reverse() });
+  }
+
   const proposalMatch = pathname.match(/^\/api\/proposals\/([^/]+)$/);
   if ((req.method === "PATCH" || req.method === "PUT") && proposalMatch) {
     const db = await readDb();

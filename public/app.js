@@ -229,7 +229,7 @@ function integerDiscount(value) {
 
 function discountLimitForCurrentUser(policy) {
   const saleModel = $("saleModel")?.value || "revenda";
-  if (saleModel === "revenda") return 10;
+  if (saleModel === "revenda") return can("discountOverride") ? 30 : 10;
   return can("discountOverride") ? 30 : Number(policy.maxDiscount || 0);
 }
 
@@ -238,6 +238,7 @@ function applySaleModelRules() {
   const saleModel = $("saleModel")?.value || "revenda";
   const maxDiscount = discountLimitForCurrentUser(policy);
   const autoDiscount = saleModel === "revenda" ? 10 : 0;
+  const revendaLivreDiretoria = saleModel === "revenda" && can("discountOverride");
   if ($("discountPct")) {
     $("discountPct").min = "0";
     $("discountPct").max = String(maxDiscount);
@@ -245,7 +246,7 @@ function applySaleModelRules() {
     if (autoDiscount > 0) {
       $("discountPct").value = "0";
       $("discountPct").disabled = true;
-      $("discountPct").title = "Revenda aplica 10% de desconto direto nos itens.";
+      $("discountPct").title = revendaLivreDiretoria ? "Revenda usa desconto direto nos itens. Diretoria pode ajustar de 10% a 30% em cada item." : "Revenda aplica 10% de desconto direto nos itens.";
     } else {
       $("discountPct").disabled = false;
       const current = integerDiscount($("discountPct").value);
@@ -254,20 +255,20 @@ function applySaleModelRules() {
     }
   }
   $("itemsBody")?.querySelectorAll(".itemDiscountInput").forEach((input) => {
-    input.min = "0";
+    input.min = revendaLivreDiretoria ? "10" : "0";
     input.max = String(maxDiscount);
     input.step = "1";
-    if (autoDiscount > 0) {
+    if (autoDiscount > 0 && !revendaLivreDiretoria) {
       input.value = String(autoDiscount);
       input.readOnly = true;
       input.dataset.autoDiscount = "true";
       input.title = "Revenda aplica desconto automatico de 10%.";
     } else {
-      if (input.dataset.autoDiscount === "true") input.value = "0";
+      if (input.dataset.autoDiscount === "true") input.value = String(autoDiscount || 0);
       delete input.dataset.autoDiscount;
       input.readOnly = false;
       input.title = `Desconto maximo deste canal: ${maxDiscount}%`;
-      input.value = String(Math.min(integerDiscount(input.value), maxDiscount));
+      input.value = String(revendaLivreDiretoria ? Math.min(Math.max(integerDiscount(input.value) || autoDiscount, 10), maxDiscount) : Math.min(integerDiscount(input.value), maxDiscount));
     }
   });
 }
@@ -419,6 +420,7 @@ function addItem(product = state.products[0]) {
     <td class="unitCell">kg</td>
     <td class="priceCell"><span class="priceText">${brl(product.preco || 0)}</span><input class="priceInput rowHidden" type="number" min="0" step="0.01" value="${product.preco || 0}"></td>
     <td><input class="itemDiscountInput" type="number" min="0" max="10" step="1" value="0"></td>
+    <td class="discountedUnitCell">R$ 0,00</td>
     <td class="totalCell">R$ 0,00</td>
     <td><button type="button" class="removeBtn">x</button></td>`;
   const lineSelect = tr.querySelector(".lineSelect");
@@ -912,7 +914,7 @@ function clearProposal() {
   state.attachments = [];
   renderAttachments();
   $("itemsBody").innerHTML = "";
-  addItem();
+  calculateTotals();
   if ($("saveProposalBtn")) $("saveProposalBtn").textContent = "SALVAR";
 }
 
@@ -968,7 +970,7 @@ function loadProposalForEdit(id) {
     row.querySelector(".itemDiscountInput").value = Number(item.discountPct || 0).toFixed(2);
     updateRowDisplay(row, product);
   });
-  if (!$("itemsBody").querySelector("tr")) addItem();
+  if (!$("itemsBody").querySelector("tr")) calculateTotals();
   if (Array.isArray(financial.installmentSchedule) && financial.installmentSchedule.length) {
     calculateTotals();
     document.querySelectorAll(".installmentRow").forEach((row, index) => {
@@ -1341,7 +1343,7 @@ async function boot() {
     $("userRole").textContent = state.user.role;
     buildNav();
     renderAll(data.nextCode);
-    addItem();
+    calculateTotals();
     if ($("proposalDate")) $("proposalDate").valueAsDate = new Date();
     if ($("entryDate")) $("entryDate").valueAsDate = new Date();
     showPage(can("dashboard") ? "dashboard" : state.user.permissions[0]);
@@ -1364,7 +1366,9 @@ $("loginForm").addEventListener("submit", async (event) => {
 });
 
 $("logoutBtn").addEventListener("click", async () => { await api("/api/logout", { method: "POST" }); location.reload(); });
-if ($("addItemBtn")) $("addItemBtn").addEventListener("click", () => addItem());
+if ($("addItemBtn")) $("addItemBtn").addEventListener("click", () => {
+  document.querySelector(".productPickerGrid")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 if ($("saveProposalBtn")) $("saveProposalBtn").addEventListener("click", () => saveProposal({ openPdf: false }));
 if ($("orderTopBtn")) $("orderTopBtn").addEventListener("click", () => state.editingProposalId ? markProposalAsOrder(state.editingProposalId) : saveProposal({ markOrder: true }));
 if ($("pdfTopBtn")) $("pdfTopBtn").addEventListener("click", () => saveProposal({ openPdf: true }));

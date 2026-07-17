@@ -538,3 +538,26 @@ label{display:block;font-size:11px;font-weight:1000;text-transform:uppercase;col
 @media(max-width:1320px) and (min-width:901px){
   .simGrid{grid-template-columns:1fr!important}
 }
+
+/* Itens da proposta com preco/kg descontado, sem cultivar inicial automatica. */
+@media(min-width:901px){
+  .proposalItemsWrap{overflow:hidden!important}
+  .proposalItemsTable{width:100%!important;min-width:0!important;table-layout:fixed!important}
+  .proposalItemsTable th,.proposalItemsTable td{padding:8px 6px!important;font-size:11px!important;line-height:1.15!important;white-space:normal!important;word-break:normal!important;overflow-wrap:normal!important}
+  .proposalItemsTable th:nth-child(1){width:18%!important}
+  .proposalItemsTable th:nth-child(2){width:9%!important}
+  .proposalItemsTable th:nth-child(3){width:11%!important}
+  .proposalItemsTable th:nth-child(4){width:8%!important}
+  .proposalItemsTable th:nth-child(5){width:5%!important}
+  .proposalItemsTable th:nth-child(6){width:11%!important;text-align:right}
+  .proposalItemsTable th:nth-child(7){width:7%!important}
+  .proposalItemsTable th:nth-child(8){width:13%!important;text-align:right}
+  .proposalItemsTable th:nth-child(9){width:13%!important;text-align:right}
+  .proposalItemsTable th:nth-child(10){display:table-cell!important;width:5%!important;text-align:center}
+  .proposalItemsTable td:nth-child(10){display:table-cell!important;text-align:center}
+  #itemsBody .cultivarCell b{font-size:12px!important;line-height:1.1!important}
+  #itemsBody .cultivarCell span,#itemsBody .standardText,#itemsBody .packageText,#itemsBody .unitCell{font-size:11px!important}
+  #itemsBody .priceText,#itemsBody .discountedUnitCell,#itemsBody .totalCell{display:block!important;text-align:right!important;font-size:12px!important;font-weight:1000!important;color:var(--green)!important;white-space:nowrap!important}
+  #itemsBody .quantityInput,#itemsBody .itemDiscountInput{max-width:62px!important;padding:7px 5px!important}
+  #itemsBody .removeBtn{width:32px!important;height:32px!important}
+}

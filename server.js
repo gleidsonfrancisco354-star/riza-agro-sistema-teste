@@ -19,6 +19,12 @@ const allPermissions = [
   "viewAll", "viewMargin", "viewCommissionPolicy", "viewDirectorSummary", "deleteProposals", "discountOverride"
 ];
 
+const salePolicies = {
+  revenda: { label: "Revenda", maxDiscount: 10, autoItemDiscount: 10 },
+  venda_direta: { label: "Venda Direta", maxDiscount: 15, autoItemDiscount: 0 },
+  cliente_final: { label: "Cliente Final", maxDiscount: 10, autoItemDiscount: 0 }
+};
+
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -235,6 +241,53 @@ function escapeHtml(value) {
     "\"": "&quot;",
     "'": "&#039;"
   }[char]));
+}
+
+function normalizeIntegerDiscount(value) {
+  const number = Number(value || 0);
+  if (!Number.isFinite(number)) return { value: 0, integer: true };
+  const rounded = Math.round(number);
+  return { value: Math.max(0, rounded), integer: Math.abs(number - rounded) < 0.00001 };
+}
+
+function normalizeCommercialRules(body, user) {
+  const next = { ...body };
+  const financial = { ...(body.financial || {}) };
+  const saleModel = salePolicies[financial.saleModel] ? financial.saleModel : "revenda";
+  const policy = salePolicies[saleModel];
+  const maxDiscount = saleModel === "revenda" ? 10 : (can(user, "discountOverride") ? 30 : policy.maxDiscount);
+  financial.saleModel = saleModel;
+  financial.saleModelLabel = policy.label;
+  financial.maxDiscountAllowed = maxDiscount;
+
+  if (saleModel === "revenda") {
+    financial.discountPct = 0;
+    next.items = (body.items || []).map((item) => ({ ...item, discountPct: 10 }));
+    next.financial = financial;
+    return { body: next };
+  }
+
+  const general = normalizeIntegerDiscount(financial.discountPct);
+  if (!general.integer) return { error: "O desconto geral precisa ser numero inteiro." };
+  if (general.value > maxDiscount) {
+    return { error: `Desconto maximo para ${policy.label}: ${maxDiscount}%. Somente Diretor pode liberar ate 30%.` };
+  }
+  financial.discountPct = general.value;
+
+  const items = (body.items || []).map((item) => {
+    const itemDiscount = normalizeIntegerDiscount(item.discountPct);
+    if (!itemDiscount.integer) {
+      throw new Error("O desconto dos itens precisa ser numero inteiro.");
+    }
+    if (itemDiscount.value > maxDiscount) {
+      throw new Error(`Desconto maximo para ${policy.label}: ${maxDiscount}%. Somente Diretor pode liberar ate 30%.`);
+    }
+    return { ...item, discountPct: itemDiscount.value };
+  });
+
+  next.items = items;
+  next.financial = financial;
+  return { body: next };
 }
 
 function pdfHtml(proposal) {
@@ -570,6 +623,14 @@ async function handleApi(req, res, pathname) {
 
   if (req.method === "POST" && pathname === "/api/proposals") {
     const body = await readBody(req);
+    let normalizedRules;
+    try {
+      normalizedRules = normalizeCommercialRules(body, user);
+    } catch (error) {
+      return send(res, 400, { error: error.message });
+    }
+    if (normalizedRules.error) return send(res, 400, { error: normalizedRules.error });
+    Object.assign(body, normalizedRules.body);
     const db = await readDb();
     const number = db.nextProposalNumber++;
     const now = new Date();
@@ -688,6 +749,14 @@ async function handleApi(req, res, pathname) {
       return send(res, 403, { error: "Somente o dono da proposta ou diretor pode editar." });
     }
     const body = await readBody(req);
+    let normalizedRules;
+    try {
+      normalizedRules = normalizeCommercialRules(body, user);
+    } catch (error) {
+      return send(res, 400, { error: error.message });
+    }
+    if (normalizedRules.error) return send(res, 400, { error: normalizedRules.error });
+    Object.assign(body, normalizedRules.body);
     const updated = normalizeProposalFromBody(proposal, body, user);
     if (!updated.customer.name) return send(res, 400, { error: "Informe o cliente." });
     if (!updated.items.length) return send(res, 400, { error: "Adicione ao menos um item." });

@@ -419,7 +419,6 @@ function addItem(product = state.products[0]) {
     <td class="unitCell">kg</td>
     <td class="priceCell"><span class="priceText">${brl(product.preco || 0)}</span><input class="priceInput rowHidden" type="number" min="0" step="0.01" value="${product.preco || 0}"></td>
     <td><input class="itemDiscountInput" type="number" min="0" max="10" step="1" value="0"></td>
-    <td class="discountedUnitCell">R$ 0,00</td>
     <td class="totalCell">R$ 0,00</td>
     <td><button type="button" class="removeBtn">x</button></td>`;
   const lineSelect = tr.querySelector(".lineSelect");

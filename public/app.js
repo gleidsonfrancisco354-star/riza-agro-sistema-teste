@@ -2,6 +2,7 @@ const state = { user: null, products: [], proposals: [], users: [], clients: [],
 const $ = (id) => document.getElementById(id);
 const round2 = (value) => Math.round((Number(value || 0) + Number.EPSILON) * 100) / 100;
 const brl = (value) => round2(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const html = (value = "") => String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[char]));
 
 const commissionPolicies = {
   revenda: {
@@ -635,10 +636,10 @@ function renderReports() {
       <div class="infoCard"><small>Itens em pedidos</small><b>${items}</b></div>
     </div>
     <div class="reportGrid">
-      <div class="reportPanel"><h3>Pedidos por vendedor</h3><table><thead><tr><th>Vendedor</th><th>Pedidos</th><th>Valor</th></tr></thead><tbody>${sellerRows.map((row) => `<tr><td>${row.seller}</td><td>${row.orders}</td><td class="moneyCell">${brl(row.total)}</td></tr>`).join("") || `<tr><td colspan="3" class="emptyState compact">Sem pedidos ainda.</td></tr>`}</tbody></table></div>
-      <div class="reportPanel"><h3>Pedidos por cultivar</h3><table><thead><tr><th>Cultivar</th><th>Padrao</th><th>Qtde</th><th>Valor</th></tr></thead><tbody>${[...byCultivar.values()].sort((a, b) => b.total - a.total).map((row) => `<tr><td><b>${row.product}</b><br><small>${row.line}</small></td><td>${row.standard}</td><td>${row.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</td><td class="moneyCell">${brl(row.total)}</td></tr>`).join("") || `<tr><td colspan="4" class="emptyState compact">Sem cultivares em pedido.</td></tr>`}</tbody></table></div>
+      <div class="reportPanel"><h3>Pedidos por vendedor</h3><div class="reportList">${sellerRows.map((row) => `<div class="reportLine"><div><b>${html(row.seller)}</b><small>${row.orders} pedido(s)</small></div><strong>${brl(row.total)}</strong></div>`).join("") || `<div class="emptyState compact">Sem pedidos ainda.</div>`}</div></div>
+      <div class="reportPanel"><h3>Pedidos por cultivar</h3><div class="reportList">${[...byCultivar.values()].sort((a, b) => b.total - a.total).map((row) => `<div class="reportLine"><div><b>${html(row.product)}</b><small>${html(row.line)} - ${html(row.standard)} - ${row.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 0 })} kg</small></div><strong>${brl(row.total)}</strong></div>`).join("") || `<div class="emptyState compact">Sem cultivares em pedido.</div>`}</div></div>
     </div>
-    <div class="reportPanel wideReport"><h3>Relatorio de pedidos</h3><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Vendedor</th><th>Data</th><th>Cultivares</th><th>Total</th></tr></thead><tbody>${orders.map((proposal) => `<tr><td><b>${proposal.code}</b></td><td>${proposal.customer?.name || ""}<br><small>${proposal.customer?.company || ""}</small></td><td>${proposal.createdByName || ""}</td><td>${proposal.orderCreatedAtLabel || proposal.createdAtLabel || ""}</td><td>${(proposal.items || []).map((item) => `${item.product} ${item.standard}`).join("<br>")}</td><td class="moneyCell">${brl(proposal.total)}</td></tr>`).join("") || `<tr><td colspan="6" class="emptyState compact">Gere pedidos para alimentar o relatorio.</td></tr>`}</tbody></table></div>`;
+    <div class="reportPanel wideReport"><h3>Relatorio de pedidos</h3><div class="orderReportList">${orders.map((proposal) => `<div class="orderReportCard"><div><small>Pedido</small><b>${html(proposal.code)}</b></div><div><small>Cliente</small><b>${html(proposal.customer?.name || "")}</b><span>${html(proposal.customer?.company || "")}</span></div><div><small>Vendedor</small><b>${html(proposal.createdByName || "")}</b><span>${html(proposal.orderCreatedAtLabel || proposal.createdAtLabel || "")}</span></div><div><small>Cultivares</small><span>${(proposal.items || []).map((item) => `${html(item.product)} ${html(item.standard)}`).join("<br>")}</span></div><div class="orderTotal"><small>Total</small><b>${brl(proposal.total)}</b></div></div>`).join("") || `<div class="emptyState compact">Gere pedidos para alimentar o relatorio.</div>`}</div></div>`;
 }
 
 function permissionCheckboxes(selected = []) {
@@ -745,9 +746,10 @@ function renderCommissionsDashboard() {
       <td class="moneyCell">${brl(row.volume)}</td>
       <td class="moneyCell">${brl(row.commission)}</td>
       <td>${row.id && can("users") ? `<label class="check compactCheck"><input class="commissionActive" type="checkbox" ${row.active !== false ? "checked" : ""}>Ativo</label>` : (row.active === false ? "Inativo" : "Ativo")}</td>
-      <td>${row.id && can("users") ? `<div class="rowActions"><button class="secondaryBtn commissionSaveBtn">Salvar</button><button class="dangerTiny commissionDeleteBtn">Excluir</button></div>` : "-"}</td>
+      <td><div class="rowActions"><button class="secondaryBtn commissionReportBtn" data-seller="${html(row.name)}">PDF</button>${row.id && can("users") ? `<button class="secondaryBtn commissionSaveBtn">Salvar</button><button class="dangerTiny commissionDeleteBtn">Excluir</button>` : ""}</div></td>
     </tr>`).join("") || `<tr><td colspan="7" class="emptyState compact">As comissoes aparecem quando a proposta virar pedido.</td></tr>`;
   document.querySelectorAll("[data-commission-user]").forEach((row) => {
+    row.querySelector(".commissionReportBtn")?.addEventListener("click", () => openSellerCommissionReport(row.querySelector(".commissionReportBtn").dataset.seller));
     if (!row.dataset.commissionUser || !can("users")) return;
     row.querySelector(".commissionSaveBtn")?.addEventListener("click", async () => {
       const user = state.users.find((item) => item.id === row.dataset.commissionUser);
@@ -787,6 +789,35 @@ function renderCommissionsDashboard() {
         <td class="moneyCell">${brl(row.commission)}</td>
       </tr>`).join("") || `<tr><td colspan="9" class="emptyState compact">As comissoes aparecem somente depois de gerar pedido.</td></tr>`;
   }
+}
+
+function openSellerCommissionReport(sellerName) {
+  const orders = orderProposals().filter((proposal) => (proposal.createdByName || "Usuario") === sellerName);
+  const details = orders.flatMap((proposal) => commissionRowsForProposal(proposal));
+  const totalVolume = orders.reduce((sum, proposal) => sum + Number(proposal.totalWithoutFreight || proposal.total || 0), 0);
+  const totalCommission = details.reduce((sum, row) => sum + Number(row.commission || 0), 0);
+  const win = window.open("", "_blank");
+  if (!win) return;
+  const orderRows = orders.map((proposal) => `
+    <tr>
+      <td>${html(proposal.code)}</td>
+      <td>${html(proposal.customer?.name || "")}</td>
+      <td>${html(proposal.orderCreatedAtLabel || proposal.createdAtLabel || "")}</td>
+      <td>${(proposal.items || []).map((item) => `${html(item.product)} ${html(item.standard)}`).join("<br>")}</td>
+      <td class="num">${brl(proposal.totalWithoutFreight || proposal.total)}</td>
+    </tr>`).join("");
+  const detailRows = details.map((row) => `
+    <tr>
+      <td>${html(row.proposal.code)}</td>
+      <td>${html(row.participant)}</td>
+      <td class="num">${row.pct.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
+      <td class="num">${brl(row.base)}</td>
+      <td class="num">${brl(row.commission)}</td>
+    </tr>`).join("");
+  win.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comissoes - ${html(sellerName)}</title><style>
+    @page{size:A4;margin:10mm}body{font-family:Arial,Segoe UI,sans-serif;color:#102316;margin:0;font-size:12px}.top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:4px solid #063d21;padding-bottom:12px;margin-bottom:16px}h1{color:#063d21;margin:0;font-size:22px;text-transform:uppercase}h2{color:#063d21;font-size:14px;text-transform:uppercase;margin:18px 0 8px}.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}.kpi{border:1px solid #d7e2d7;border-radius:8px;padding:12px}.kpi small{display:block;text-transform:uppercase;color:#66736a;font-weight:800}.kpi b{display:block;color:#063d21;font-size:18px;margin-top:5px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #d7e2d7;padding:7px;text-align:left;vertical-align:top}th{background:#f5f8f5;text-transform:uppercase;font-size:10px}.num{text-align:right;font-weight:900;white-space:nowrap}.no-print{position:fixed;right:16px;top:16px;background:#063d21;color:#fff;border:0;border-radius:6px;padding:10px 14px;font-weight:800}@media print{.no-print{display:none}}
+  </style></head><body><button class="no-print" onclick="window.print()">Salvar em PDF</button><div class="top"><div><h1>Relatorio individual de comissoes</h1><b>${html(sellerName)}</b></div><div>${new Date().toLocaleString("pt-BR")}</div></div><div class="kpis"><div class="kpi"><small>Pedidos</small><b>${orders.length}</b></div><div class="kpi"><small>Volume em pedidos</small><b>${brl(totalVolume)}</b></div><div class="kpi"><small>Comissao total</small><b>${brl(totalCommission)}</b></div></div><h2>Pedidos de compra</h2><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Cultivares</th><th>Valor</th></tr></thead><tbody>${orderRows || `<tr><td colspan="5">Nenhum pedido gerado para este vendedor.</td></tr>`}</tbody></table><h2>Comissoes calculadas</h2><table><thead><tr><th>Pedido</th><th>Participante</th><th>%</th><th>Base</th><th>Comissao</th></tr></thead><tbody>${detailRows || `<tr><td colspan="5">Sem comissoes calculadas.</td></tr>`}</tbody></table><script>setTimeout(() => window.print(), 500);</script></body></html>`);
+  win.document.close();
 }
 
 function renderUsers() {

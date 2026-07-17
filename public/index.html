@@ -122,7 +122,7 @@
 
             <div class="panel">
               <div class="panelActions"><h2>ITENS DA PROPOSTA</h2><button id="addItemBtn" class="secondaryBtn">Adicionar item</button></div>
-              <div class="tableWrap"><table class="proposalItemsTable"><thead><tr><th>Cultivar/Linha</th><th>Padrao</th><th>Emb.</th><th>Qtde</th><th>Un.</th><th>Preco</th><th>Desc.</th><th>Preco kg c/ desc.</th><th>Total</th><th>Acao</th></tr></thead><tbody id="itemsBody"></tbody></table></div>
+              <div class="tableWrap proposalItemsWrap"><table class="proposalItemsTable"><thead><tr><th>Cultivar/Linha</th><th>Padrao</th><th>Emb.</th><th>Qtde</th><th>Un.</th><th>Preco</th><th>Desc.</th><th>R$/KG c/ desc.</th><th>Total</th><th>Acao</th></tr></thead><tbody id="itemsBody"></tbody></table></div>
               <div class="totalBar"><span>Total Geral</span><b id="proposalTotal">R$ 0,00</b></div>
               <div id="formError" class="error"></div>
             </div>
@@ -220,8 +220,8 @@
           <button id="createCommissionUserBtn" class="primaryBtn inline">Incluir colaborador</button>
           <div id="commissionUserError" class="error"></div>
         </div>
-        <div class="panel commissionTablePanel"><h2>Resumo por colaborador</h2><div class="tableWrap"><table class="commissionTable"><thead><tr><th>Colaborador</th><th>Perfil</th><th>Propostas</th><th>Volume</th><th>Comissao estimada</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="commissionsBody"></tbody></table></div></div>
-        <div class="panel commissionTablePanel"><h2>Comissoes por proposta</h2><div class="tableWrap"><table class="commissionDetailTable"><thead><tr><th>Proposta</th><th>Cliente</th><th>Data</th><th>Vendedor</th><th>Canal</th><th>Participante</th><th>%</th><th>Base</th><th>Comissao</th></tr></thead><tbody id="commissionDetailsBody"></tbody></table></div></div>
+        <div class="panel commissionTablePanel"><h2>Resumo por vendedor</h2><div class="tableWrap"><table class="commissionTable"><thead><tr><th>Colaborador</th><th>Perfil</th><th>Pedidos</th><th>Volume</th><th>Comissao</th><th>Status</th><th>Acoes</th></tr></thead><tbody id="commissionsBody"></tbody></table></div></div>
+        <div class="panel commissionTablePanel"><h2>Comissoes por pedido</h2><div class="tableWrap"><table class="commissionDetailTable"><thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Vendedor</th><th>Canal</th><th>Participante</th><th>%</th><th>Base</th><th>Comissao</th></tr></thead><tbody id="commissionDetailsBody"></tbody></table></div></div>
       </section>
 
       <section id="users" class="page">

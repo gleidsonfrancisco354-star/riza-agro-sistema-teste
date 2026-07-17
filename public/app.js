@@ -387,17 +387,28 @@ function renderMiniProducts(target, products) {
   $(target).querySelectorAll("[data-add-product]").forEach((button) => button.addEventListener("click", () => addItem(state.products[Number(button.dataset.addProduct)])));
 }
 
+function updateRowDisplay(tr, product) {
+  const selected = product || state.products[Number(tr.dataset.productIndex)] || {};
+  const packageText = tr.querySelector(".packageInput")?.value || selected.apresentacao || "";
+  const price = Number(tr.querySelector(".priceInput")?.value || selected.preco || 0);
+  if (tr.querySelector(".itemProductName")) tr.querySelector(".itemProductName").textContent = cleanText(selected.produto || tr.querySelector(".cultivarSelect")?.value || "");
+  if (tr.querySelector(".itemLineName")) tr.querySelector(".itemLineName").textContent = cleanText(selected.linha || tr.querySelector(".lineSelect")?.value || "");
+  if (tr.querySelector(".standardText")) tr.querySelector(".standardText").textContent = cleanText(selected.tecnologia || tr.querySelector(".standardSelect")?.value || "");
+  if (tr.querySelector(".packageText")) tr.querySelector(".packageText").textContent = cleanText(packageText);
+  if (tr.querySelector(".priceText")) tr.querySelector(".priceText").textContent = brl(price);
+}
+
 function addItem(product = state.products[0]) {
   if (!product) return;
   const tr = document.createElement("tr");
   const lineOptions = uniqueValues(state.products, "linha").map((line) => `<option value="${line}">${cleanText(line)}</option>`).join("");
   tr.innerHTML = `
-    <td class="cultivarCell"><select class="cultivarSelect"></select><select class="lineSelect">${lineOptions}</select></td>
-    <td><select class="standardSelect"></select></td>
-    <td><input class="packageInput" value="${product.apresentacao || ""}"></td>
+    <td class="cultivarCell"><b class="itemProductName"></b><span class="itemLineName"></span><select class="cultivarSelect rowHidden"></select><select class="lineSelect rowHidden">${lineOptions}</select></td>
+    <td><span class="standardText"></span><select class="standardSelect rowHidden"></select></td>
+    <td><span class="packageText"></span><input class="packageInput rowHidden" value="${product.apresentacao || ""}"></td>
     <td><input class="quantityInput" type="number" min="0" step="1" value="1"></td>
     <td class="unitCell">kg</td>
-    <td><input class="priceInput" type="number" min="0" step="0.01" value="${product.preco || 0}"></td>
+    <td class="priceCell"><span class="priceText">${brl(product.preco || 0)}</span><input class="priceInput rowHidden" type="number" min="0" step="0.01" value="${product.preco || 0}"></td>
     <td><input class="itemDiscountInput" type="number" min="0" max="10" step="1" value="0"></td>
     <td class="discountedUnitCell">R$ 0,00</td>
     <td class="totalCell">R$ 0,00</td>
@@ -423,6 +434,7 @@ function addItem(product = state.products[0]) {
     tr.dataset.productIndex = String(state.products.indexOf(selected));
     tr.querySelector(".packageInput").value = selected.apresentacao || "";
     tr.querySelector(".priceInput").value = priceForMonths(selected, paymentHorizonMonths()).toFixed(2);
+    updateRowDisplay(tr, selected);
     calculateTotals();
   }
 
@@ -505,6 +517,7 @@ function calculateTotals() {
     const cashItemDiscount = round2(cashGrossLine * itemDiscountPct / 100);
     const line = round2(Math.max(0, grossLine - itemDiscount));
     const discountedUnit = round2(Math.max(0, unitPrice - unitPrice * itemDiscountPct / 100));
+    updateRowDisplay(tr, selected);
     if (tr.querySelector(".discountedUnitCell")) tr.querySelector(".discountedUnitCell").textContent = brl(discountedUnit);
     tr.querySelector(".totalCell").textContent = brl(line);
     tr.querySelector(".totalCell").dataset.total = String(line);
@@ -886,6 +899,7 @@ function loadProposalForEdit(id) {
     row.querySelector(".quantityInput").value = item.quantity || 0;
     row.querySelector(".priceInput").value = Number(item.unitPrice || 0).toFixed(2);
     row.querySelector(".itemDiscountInput").value = Number(item.discountPct || 0).toFixed(2);
+    updateRowDisplay(row, product);
   });
   if (!$("itemsBody").querySelector("tr")) addItem();
   if (Array.isArray(financial.installmentSchedule) && financial.installmentSchedule.length) {

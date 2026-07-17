@@ -1387,7 +1387,17 @@ if ($("passwordForm")) $("passwordForm").addEventListener("submit", changePasswo
 ].forEach(([id, mask]) => {
   if ($(id)) $(id).addEventListener("input", () => { $(id).value = mask($(id).value); });
 });
-["proposalDate", "payment", "financeEntry", "entryDate", "financeInterest", "financeInstallments", "discountPct", "marginPct", "saleModel", "freightEnabled", "freightValue"].forEach((id) => {
+if ($("saleModel")) $("saleModel").addEventListener("change", () => {
+  const saleModel = $("saleModel").value;
+  const defaultItemDiscount = saleModel === "revenda" ? 10 : 0;
+  if ($("discountPct")) $("discountPct").value = "0";
+  $("itemsBody")?.querySelectorAll(".itemDiscountInput").forEach((input) => {
+    input.value = String(defaultItemDiscount);
+    input.dataset.autoDiscount = defaultItemDiscount ? "true" : "";
+  });
+  calculateTotals();
+});
+["proposalDate", "payment", "financeEntry", "entryDate", "financeInterest", "financeInstallments", "discountPct", "marginPct", "freightEnabled", "freightValue"].forEach((id) => {
   if ($(id)) $(id).addEventListener("input", calculateTotals);
   if ($(id)) $(id).addEventListener("change", calculateTotals);
 });

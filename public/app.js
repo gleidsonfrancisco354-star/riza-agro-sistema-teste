@@ -128,19 +128,19 @@ function cleanText(value) {
     text = decodeURIComponent(escape(text));
   } catch {}
   return text
-    .replace(/Ãƒâ€¡/g, "Ã‡")
-    .replace(/ÃƒÂ/g, "Ã")
-    .replace(/Ãƒâ€°/g, "Ã‰")
-    .replace(/ÃƒÆ’/g, "Ãƒ")
-    .replace(/ÃƒÂ£/g, "Ã£")
-    .replace(/ÃƒÂ¡/g, "Ã¡")
-    .replace(/ÃƒÂ©/g, "Ã©")
-    .replace(/ÃƒÂ­/g, "Ã­")
-    .replace(/ÃƒÂ³/g, "Ã³")
-    .replace(/ÃƒÂº/g, "Ãº")
-    .replace(/Ã‚Âª/g, "Âª")
-    .replace(/ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢|â€¢/g, "-")
-    .replace(/ï¿½/g, "")
+    .replace(/Ã‡/g, "Ç")
+    .replace(/Ã/g, "Á")
+    .replace(/Ã‰/g, "É")
+    .replace(/Ãƒ/g, "Ã")
+    .replace(/Ã£/g, "ã")
+    .replace(/Ã¡/g, "á")
+    .replace(/Ã©/g, "é")
+    .replace(/Ã­/g, "í")
+    .replace(/Ã³/g, "ó")
+    .replace(/Ãº/g, "ú")
+    .replace(/Âª/g, "ª")
+    .replace(/Ã¢â‚¬Â¢|â€¢|•/g, "-")
+    .replace(/ /g, "")
     .replace(/\s+-\s+/g, " - ");
 }
 
@@ -233,12 +233,34 @@ function discountLimitForCurrentUser(policy) {
   return can("discountOverride") ? 30 : Number(policy.maxDiscount || 0);
 }
 
+function itemDiscountBounds() {
+  const policy = getCommissionPolicy();
+  const saleModel = $("saleModel")?.value || "revenda";
+  const max = discountLimitForCurrentUser(policy);
+  if (saleModel === "revenda" && can("discountOverride")) return { min: 10, max };
+  if (saleModel === "revenda") return { min: 10, max: 10 };
+  return { min: 0, max };
+}
+
+function effectiveItemDiscount(input) {
+  const { min, max } = itemDiscountBounds();
+  const value = integerDiscount(input?.value || 0);
+  return Math.min(Math.max(value, min), max);
+}
+
+function normalizeItemDiscountInput(input) {
+  if (!input || input.readOnly) return;
+  input.value = String(effectiveItemDiscount(input));
+  calculateTotals();
+}
+
 function applySaleModelRules() {
   const policy = getCommissionPolicy();
   const saleModel = $("saleModel")?.value || "revenda";
   const maxDiscount = discountLimitForCurrentUser(policy);
   const autoDiscount = saleModel === "revenda" ? 10 : 0;
   const revendaLivreDiretoria = saleModel === "revenda" && can("discountOverride");
+  const activeInput = document.activeElement;
   if ($("discountPct")) {
     $("discountPct").min = "0";
     $("discountPct").max = String(maxDiscount);
@@ -268,7 +290,7 @@ function applySaleModelRules() {
       delete input.dataset.autoDiscount;
       input.readOnly = false;
       input.title = `Desconto maximo deste canal: ${maxDiscount}%`;
-      input.value = String(revendaLivreDiretoria ? Math.min(Math.max(integerDiscount(input.value) || autoDiscount, 10), maxDiscount) : Math.min(integerDiscount(input.value), maxDiscount));
+      if (activeInput !== input && input.value !== "") input.value = String(effectiveItemDiscount(input));
     }
   });
 }
@@ -463,6 +485,8 @@ function addItem(product = state.products[0]) {
   });
   standardSelect.addEventListener("change", syncProduct);
   tr.querySelectorAll("input").forEach((input) => input.addEventListener("input", calculateTotals));
+  tr.querySelector(".itemDiscountInput").addEventListener("change", (event) => normalizeItemDiscountInput(event.target));
+  tr.querySelector(".itemDiscountInput").addEventListener("blur", (event) => normalizeItemDiscountInput(event.target));
   tr.querySelector(".removeBtn").addEventListener("click", () => { tr.remove(); calculateTotals(); });
   $("itemsBody").appendChild(tr);
   applySaleModelRules();
@@ -479,7 +503,7 @@ function readItems() {
     const quantity = Number(tr.querySelector(".quantityInput").value || 0);
     const unitPrice = Number(tr.querySelector(".priceInput").value || 0);
     const cashUnitPrice = Number(selected.preco || unitPrice);
-    const discountPct = integerDiscount(tr.querySelector(".itemDiscountInput")?.value || 0);
+    const discountPct = effectiveItemDiscount(tr.querySelector(".itemDiscountInput"));
     const discountedUnitPrice = round2(Math.max(0, unitPrice - unitPrice * discountPct / 100));
     const grossTotal = quantity * unitPrice;
     const grossCashTotal = quantity * cashUnitPrice;
@@ -520,7 +544,7 @@ function calculateTotals() {
     const qty = Number(tr.querySelector(".quantityInput").value || 0);
     const unitPrice = Number(tr.querySelector(".priceInput").value || 0);
     const cashUnitPrice = Number(selected.preco || unitPrice);
-    const itemDiscountPct = integerDiscount(tr.querySelector(".itemDiscountInput")?.value || 0);
+    const itemDiscountPct = effectiveItemDiscount(tr.querySelector(".itemDiscountInput"));
     const grossLine = round2(qty * unitPrice);
     const cashGrossLine = round2(qty * cashUnitPrice);
     const itemDiscount = round2(grossLine * itemDiscountPct / 100);

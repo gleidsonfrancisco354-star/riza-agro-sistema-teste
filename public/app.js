@@ -347,6 +347,14 @@ function renderDashboard() {
   }
 }
 
+function isOrder(proposal) {
+  return String(proposal?.status || "").toLowerCase() === "pedido" || !!proposal?.orderCreatedAt;
+}
+
+function orderProposals() {
+  return state.proposals.filter(isOrder);
+}
+
 function renderProducts() {
   $("productsBody").innerHTML = state.products.map((product) => `
     <tr><td>${cleanText(product.linha)}</td><td><b>${cleanText(product.produto)}</b></td><td>${cleanText(product.tecnologia)}</td><td>${cleanText(product.apresentacao)}</td><td class="moneyCell">${brl(product.preco)}</td></tr>`
@@ -576,13 +584,14 @@ function calculateTotals() {
 function renderHistory() {
   $("historyBody").innerHTML = state.proposals.map((proposal) => `
     <tr>
-      <td><b>${proposal.code}</b></td><td>${proposal.customer.name}<br><small>${proposal.customer.company || ""}</small></td>
+      <td><b>${proposal.code}</b><br><span class="statusPill ${isOrder(proposal) ? "order" : ""}">${isOrder(proposal) ? "Pedido" : "Proposta"}</span></td><td>${proposal.customer.name}<br><small>${proposal.customer.company || ""}</small></td>
       <td class="moneyCell">${brl(proposal.total)}</td><td>${proposal.createdByName}</td><td>${proposal.createdAtLabel}</td>
-      <td><div class="rowActions"><button class="secondaryBtn" data-edit-proposal="${proposal.id}">Editar</button><button class="secondaryBtn" data-pdf="${proposal.id}">PDF</button>${can("deleteProposals") ? `<button class="dangerTiny" data-delete-proposal="${proposal.id}">Excluir</button>` : ""}</div></td>
+      <td><div class="rowActions"><button class="secondaryBtn" data-edit-proposal="${proposal.id}">Editar</button><button class="secondaryBtn" data-pdf="${proposal.id}">PDF</button>${isOrder(proposal) ? "" : `<button class="primaryTiny" data-order-proposal="${proposal.id}">Gerar pedido</button>`}${can("deleteProposals") ? `<button class="dangerTiny" data-delete-proposal="${proposal.id}">Excluir</button>` : ""}</div></td>
     </tr>`).join("");
   $("emptyHistory").style.display = state.proposals.length ? "none" : "block";
   document.querySelectorAll("[data-edit-proposal]").forEach((button) => button.addEventListener("click", () => loadProposalForEdit(button.dataset.editProposal)));
   document.querySelectorAll("[data-pdf]").forEach((button) => button.addEventListener("click", () => window.open(`/api/proposals/${button.dataset.pdf}/pdf`, "_blank")));
+  document.querySelectorAll("[data-order-proposal]").forEach((button) => button.addEventListener("click", () => markProposalAsOrder(button.dataset.orderProposal)));
   document.querySelectorAll("[data-delete-proposal]").forEach((button) => button.addEventListener("click", () => deleteProposal(button.dataset.deleteProposal)));
 }
 
@@ -598,13 +607,38 @@ function renderClients() {
 }
 
 function renderReports() {
-  const total = state.proposals.reduce((sum, proposal) => sum + Number(proposal.total || 0), 0);
-  const items = state.proposals.reduce((sum, proposal) => sum + proposal.items.length, 0);
+  const orders = orderProposals();
+  const total = orders.reduce((sum, proposal) => sum + Number(proposal.total || 0), 0);
+  const pending = state.proposals.filter((proposal) => !isOrder(proposal));
+  const items = orders.reduce((sum, proposal) => sum + proposal.items.length, 0);
+  const byCultivar = new Map();
+  orders.forEach((proposal) => (proposal.items || []).forEach((item) => {
+    const key = `${item.line || ""} | ${item.product || ""} | ${item.standard || ""}`;
+    const current = byCultivar.get(key) || { line: item.line || "", product: item.product || "", standard: item.standard || "", quantity: 0, total: 0 };
+    current.quantity += Number(item.quantity || 0);
+    current.total += Number(item.total || 0);
+    byCultivar.set(key, current);
+  }));
+  const sellerRows = [...orders.reduce((map, proposal) => {
+    const key = proposal.createdBy || proposal.createdByName || "sem-id";
+    const current = map.get(key) || { seller: proposal.createdByName || "Vendedor", orders: 0, total: 0 };
+    current.orders += 1;
+    current.total += Number(proposal.total || 0);
+    map.set(key, current);
+    return map;
+  }, new Map()).values()];
   $("reportsGrid").innerHTML = `
-    <div class="infoCard"><small>Total emitido</small><b>${brl(total)}</b></div>
-    <div class="infoCard"><small>Propostas</small><b>${state.proposals.length}</b></div>
-    <div class="infoCard"><small>Itens negociados</small><b>${items}</b></div>
-    <div class="infoCard"><small>Produtos cadastrados</small><b>${state.products.length}</b></div>`;
+    <div class="reportKpis">
+      <div class="infoCard"><small>Total em pedidos</small><b>${brl(total)}</b></div>
+      <div class="infoCard"><small>Pedidos gerados</small><b>${orders.length}</b></div>
+      <div class="infoCard"><small>Propostas em aberto</small><b>${pending.length}</b></div>
+      <div class="infoCard"><small>Itens em pedidos</small><b>${items}</b></div>
+    </div>
+    <div class="reportGrid">
+      <div class="reportPanel"><h3>Pedidos por vendedor</h3><table><thead><tr><th>Vendedor</th><th>Pedidos</th><th>Valor</th></tr></thead><tbody>${sellerRows.map((row) => `<tr><td>${row.seller}</td><td>${row.orders}</td><td class="moneyCell">${brl(row.total)}</td></tr>`).join("") || `<tr><td colspan="3" class="emptyState compact">Sem pedidos ainda.</td></tr>`}</tbody></table></div>
+      <div class="reportPanel"><h3>Pedidos por cultivar</h3><table><thead><tr><th>Cultivar</th><th>Padrao</th><th>Qtde</th><th>Valor</th></tr></thead><tbody>${[...byCultivar.values()].sort((a, b) => b.total - a.total).map((row) => `<tr><td><b>${row.product}</b><br><small>${row.line}</small></td><td>${row.standard}</td><td>${row.quantity.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}</td><td class="moneyCell">${brl(row.total)}</td></tr>`).join("") || `<tr><td colspan="4" class="emptyState compact">Sem cultivares em pedido.</td></tr>`}</tbody></table></div>
+    </div>
+    <div class="reportPanel wideReport"><h3>Relatorio de pedidos</h3><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Vendedor</th><th>Data</th><th>Cultivares</th><th>Total</th></tr></thead><tbody>${orders.map((proposal) => `<tr><td><b>${proposal.code}</b></td><td>${proposal.customer?.name || ""}<br><small>${proposal.customer?.company || ""}</small></td><td>${proposal.createdByName || ""}</td><td>${proposal.orderCreatedAtLabel || proposal.createdAtLabel || ""}</td><td>${(proposal.items || []).map((item) => `${item.product} ${item.standard}`).join("<br>")}</td><td class="moneyCell">${brl(proposal.total)}</td></tr>`).join("") || `<tr><td colspan="6" class="emptyState compact">Gere pedidos para alimentar o relatorio.</td></tr>`}</tbody></table></div>`;
 }
 
 function permissionCheckboxes(selected = []) {
@@ -650,7 +684,8 @@ function renderCommissionsDashboard() {
   if (!$("commissionsGrid") || !can("commissions")) return;
   const bySeller = new Map();
   const commissionDetails = [];
-  state.proposals.forEach((proposal) => {
+  const orders = orderProposals();
+  orders.forEach((proposal) => {
     const key = proposal.createdBy || proposal.createdByName || "sem-id";
     const user = state.users.find((item) => item.id === proposal.createdBy || item.name === proposal.createdByName) || {};
     const current = bySeller.get(key) || {
@@ -696,10 +731,10 @@ function renderCommissionsDashboard() {
   const totalCommission = rows.reduce((sum, row) => sum + row.commission, 0);
   const activeUsers = rows.filter((row) => row.active !== false).length;
   $("commissionsGrid").innerHTML = `
-    <div class="infoCard"><small>Volume da equipe</small><b>${brl(totalVolume)}</b></div>
-    <div class="infoCard"><small>Comissao estimada</small><b>${brl(totalCommission)}</b></div>
+    <div class="infoCard"><small>Volume em pedidos</small><b>${brl(totalVolume)}</b></div>
+    <div class="infoCard"><small>Comissao sobre pedidos</small><b>${brl(totalCommission)}</b></div>
     <div class="infoCard"><small>Colaboradores ativos</small><b>${activeUsers}</b></div>
-    <div class="infoCard"><small>Propostas geradas</small><b>${state.proposals.length}</b></div>`;
+    <div class="infoCard"><small>Pedidos gerados</small><b>${orders.length}</b></div>`;
   if ($("commissionUserRole")) $("commissionUserRole").innerHTML = profileOptions("Representante Comercial");
   if ($("commissionUserPanel")) $("commissionUserPanel").classList.toggle("hidden", !can("users"));
   $("commissionsBody").innerHTML = rows.map((row) => `
@@ -711,7 +746,7 @@ function renderCommissionsDashboard() {
       <td class="moneyCell">${brl(row.commission)}</td>
       <td>${row.id && can("users") ? `<label class="check compactCheck"><input class="commissionActive" type="checkbox" ${row.active !== false ? "checked" : ""}>Ativo</label>` : (row.active === false ? "Inativo" : "Ativo")}</td>
       <td>${row.id && can("users") ? `<div class="rowActions"><button class="secondaryBtn commissionSaveBtn">Salvar</button><button class="dangerTiny commissionDeleteBtn">Excluir</button></div>` : "-"}</td>
-    </tr>`).join("") || `<tr><td colspan="7" class="emptyState compact">As comissoes aparecem quando as propostas forem salvas.</td></tr>`;
+    </tr>`).join("") || `<tr><td colspan="7" class="emptyState compact">As comissoes aparecem quando a proposta virar pedido.</td></tr>`;
   document.querySelectorAll("[data-commission-user]").forEach((row) => {
     if (!row.dataset.commissionUser || !can("users")) return;
     row.querySelector(".commissionSaveBtn")?.addEventListener("click", async () => {
@@ -743,14 +778,14 @@ function renderCommissionsDashboard() {
       <tr>
         <td><b>${row.proposal.code}</b></td>
         <td>${row.proposal.customer?.name || ""}</td>
-        <td>${row.proposal.createdAtLabel || ""}</td>
+        <td>${row.proposal.orderCreatedAtLabel || row.proposal.createdAtLabel || ""}</td>
         <td>${row.proposal.createdByName || ""}</td>
         <td>${row.channel}</td>
         <td><b>${row.participant}</b></td>
         <td class="moneyCell">${row.pct.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</td>
         <td class="moneyCell">${brl(row.base)}</td>
         <td class="moneyCell">${brl(row.commission)}</td>
-      </tr>`).join("") || `<tr><td colspan="9" class="emptyState compact">As comissoes aparecem quando houver propostas salvas.</td></tr>`;
+      </tr>`).join("") || `<tr><td colspan="9" class="emptyState compact">As comissoes aparecem somente depois de gerar pedido.</td></tr>`;
   }
 }
 
@@ -820,6 +855,8 @@ function renderActivity() {
     usuario_alterado: "Alterou usuario",
     usuario_excluido: "Excluiu usuario",
     proposta_salva: "Salvou proposta",
+    proposta_alterada: "Alterou proposta",
+    pedido_gerado: "Gerou pedido",
     proposta_excluida: "Excluiu proposta"
   };
   $("activityList").innerHTML = (state.activityLogs || []).map((item) => {
@@ -923,6 +960,7 @@ function loadProposalForEdit(id) {
 
 async function saveProposal(options = {}) {
   const shouldOpenPdf = !!options.openPdf;
+  const shouldMarkOrder = !!options.markOrder;
   const pdfWindow = shouldOpenPdf ? window.open("about:blank", "_blank") : null;
   $("formError").textContent = "";
   const payload = {
@@ -951,9 +989,13 @@ async function saveProposal(options = {}) {
     const data = await api(path, { method, body: JSON.stringify(payload) });
     if (state.editingProposalId) state.proposals = data.proposals || state.proposals.map((item) => item.id === data.proposal.id ? data.proposal : item);
     else state.proposals.unshift(data.proposal);
+    if (shouldMarkOrder) {
+      const orderData = await api(`/api/proposals/${data.proposal.id}/order`, { method: "POST" });
+      state.proposals = orderData.proposals || state.proposals.map((item) => item.id === orderData.proposal.id ? orderData.proposal : item);
+    }
     renderAll(data.nextCode);
     clearProposal();
-    showPage("history");
+    showPage(shouldMarkOrder ? "commissions" : "history");
     if (shouldOpenPdf) {
       const pdfUrl = `/api/proposals/${data.proposal.id}/pdf`;
       if (pdfWindow) pdfWindow.location.href = pdfUrl;
@@ -963,6 +1005,16 @@ async function saveProposal(options = {}) {
     if (pdfWindow) pdfWindow.close();
     $("formError").textContent = error.message;
   }
+}
+
+async function markProposalAsOrder(id) {
+  const proposal = state.proposals.find((item) => item.id === id);
+  if (!proposal) return;
+  if (!confirm(`Gerar pedido de compra para ${proposal.code}? A partir disso ele entra no comissionamento.`)) return;
+  const data = await api(`/api/proposals/${id}/order`, { method: "POST" });
+  state.proposals = data.proposals || state.proposals.map((item) => item.id === data.proposal.id ? data.proposal : item);
+  renderAll();
+  showPage("commissions");
 }
 
 async function createUser() {
@@ -1284,6 +1336,7 @@ $("loginForm").addEventListener("submit", async (event) => {
 $("logoutBtn").addEventListener("click", async () => { await api("/api/logout", { method: "POST" }); location.reload(); });
 if ($("addItemBtn")) $("addItemBtn").addEventListener("click", () => addItem());
 if ($("saveProposalBtn")) $("saveProposalBtn").addEventListener("click", () => saveProposal({ openPdf: false }));
+if ($("orderTopBtn")) $("orderTopBtn").addEventListener("click", () => state.editingProposalId ? markProposalAsOrder(state.editingProposalId) : saveProposal({ markOrder: true }));
 if ($("pdfTopBtn")) $("pdfTopBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
 if ($("pdfBottomBtn")) $("pdfBottomBtn").addEventListener("click", () => saveProposal({ openPdf: true }));
 if ($("createUserBtn")) $("createUserBtn").addEventListener("click", createUser);

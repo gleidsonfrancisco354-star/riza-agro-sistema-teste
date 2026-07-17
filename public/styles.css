@@ -144,6 +144,31 @@ label{display:block;font-size:11px;font-weight:1000;text-transform:uppercase;col
 .miniProductsTable td b{color:var(--green);font-size:13px}
 .miniProductsTable .addMiniBtn{width:34px;height:34px;padding:0;border-radius:6px;font-size:20px;line-height:1}
 
+.rowHidden{display:none!important}
+.productPickerGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:8px}
+.bottomProducts{grid-template-columns:minmax(0,1fr);margin-top:8px}
+.proposalItemsTable{min-width:0!important;table-layout:fixed}
+.proposalItemsTable th,.proposalItemsTable td{padding:9px 8px;font-size:12px}
+.proposalItemsTable th:nth-child(1){width:20%;min-width:0}
+.proposalItemsTable th:nth-child(2){width:9%;min-width:0}
+.proposalItemsTable th:nth-child(3){width:11%;min-width:0}
+.proposalItemsTable th:nth-child(4){width:8%;min-width:0}
+.proposalItemsTable th:nth-child(5){width:5%;min-width:0}
+.proposalItemsTable th:nth-child(6){width:11%;min-width:0;text-align:right}
+.proposalItemsTable th:nth-child(7){width:7%;min-width:0}
+.proposalItemsTable th:nth-child(8){width:13%;min-width:0;text-align:right}
+.proposalItemsTable th:nth-child(9){width:11%;min-width:0;text-align:right}
+.proposalItemsTable th:nth-child(10){width:5%;min-width:0;text-align:center}
+#itemsBody .cultivarCell{min-width:0}
+#itemsBody .cultivarCell b{display:block;color:var(--green);font-size:13px;line-height:1.15;text-transform:uppercase;overflow-wrap:anywhere}
+#itemsBody .cultivarCell span{display:block;color:#4f6156;font-size:12px;font-weight:900;line-height:1.15;margin-top:2px}
+#itemsBody .standardText,#itemsBody .packageText,#itemsBody .unitCell{font-weight:800;color:#35463b;line-height:1.2}
+#itemsBody .priceText,#itemsBody .discountedUnitCell,#itemsBody .totalCell{display:block;text-align:right;font-weight:1000;color:var(--green);white-space:nowrap}
+#itemsBody .quantityInput,#itemsBody .itemDiscountInput{width:100%;min-width:0;max-width:78px;margin:0 auto;padding:8px;text-align:center;font-weight:1000}
+#itemsBody .removeBtn{width:34px;height:34px;padding:0;border-radius:6px;font-size:16px}
+.miniProductsTable{min-width:0}
+.miniProductsTable th,.miniProductsTable td{padding:10px 8px}
+
 @media(max-width:900px){
   body{background:#f5f8f4;overflow-x:hidden}
   .appShell{display:block;min-height:100vh;background:#f5f8f4}

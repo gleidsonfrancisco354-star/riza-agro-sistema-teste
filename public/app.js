@@ -128,19 +128,19 @@ function cleanText(value) {
     text = decodeURIComponent(escape(text));
   } catch {}
   return text
-    .replace(/Ã‡/g, "Ç")
-    .replace(/Ã/g, "Á")
-    .replace(/Ã‰/g, "É")
-    .replace(/Ãƒ/g, "Ã")
-    .replace(/Ã£/g, "ã")
-    .replace(/Ã¡/g, "á")
-    .replace(/Ã©/g, "é")
-    .replace(/Ã­/g, "í")
-    .replace(/Ã³/g, "ó")
-    .replace(/Ãº/g, "ú")
-    .replace(/Âª/g, "ª")
-    .replace(/Ã¢â‚¬Â¢|â€¢|•/g, "-")
-    .replace(/ /g, "")
+    .replace(/Ãƒâ€¡/g, "Ã‡")
+    .replace(/ÃƒÂ/g, "Ã")
+    .replace(/Ãƒâ€°/g, "Ã‰")
+    .replace(/ÃƒÆ’/g, "Ãƒ")
+    .replace(/ÃƒÂ£/g, "Ã£")
+    .replace(/ÃƒÂ¡/g, "Ã¡")
+    .replace(/ÃƒÂ©/g, "Ã©")
+    .replace(/ÃƒÂ­/g, "Ã­")
+    .replace(/ÃƒÂ³/g, "Ã³")
+    .replace(/ÃƒÂº/g, "Ãº")
+    .replace(/Ã‚Âª/g, "Âª")
+    .replace(/ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢|Ã¢â‚¬Â¢|â€¢/g, "-")
+    .replace(/ï¿½/g, "")
     .replace(/\s+-\s+/g, " - ");
 }
 

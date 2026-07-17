@@ -168,6 +168,22 @@ label{display:block;font-size:11px;font-weight:1000;text-transform:uppercase;col
 #itemsBody .removeBtn{width:34px;height:34px;padding:0;border-radius:6px;font-size:16px}
 .miniProductsTable{min-width:0}
 .miniProductsTable th,.miniProductsTable td{padding:10px 8px}
+.proposalItemsWrap{overflow-x:hidden}
+.proposalItemsTable{width:100%;table-layout:fixed}
+.proposalItemsTable th{font-size:9px;line-height:1.1;white-space:normal;overflow-wrap:normal}
+.proposalItemsTable td{line-height:1.15;overflow:hidden}
+.proposalItemsTable th,.proposalItemsTable td{padding:7px 5px}
+#itemsBody .cultivarCell b{font-size:12px}
+#itemsBody .cultivarCell span,#itemsBody .standardText,#itemsBody .packageText,#itemsBody .unitCell{font-size:11px}
+#itemsBody .priceText,#itemsBody .discountedUnitCell,#itemsBody .totalCell{font-size:11px}
+#itemsBody .quantityInput,#itemsBody .itemDiscountInput{max-width:62px;padding:7px 5px}
+#itemsBody .removeBtn{width:30px;height:30px}
+.statusPill{display:inline-flex;align-items:center;justify-content:center;margin-top:4px;padding:3px 7px;border-radius:999px;background:#f2f5f2;color:#5d6c62;font-size:10px;font-weight:1000;text-transform:uppercase}.statusPill.order{background:#e5f7ed;color:#006a2d}
+.primaryTiny{background:var(--green);color:#fff;border:0;border-radius:5px;padding:9px 12px;font-weight:1000;font-size:12px}
+.reportKpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px}.reportGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.reportPanel{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden;box-shadow:0 14px 34px rgba(0,0,0,.04)}.reportPanel h3{margin:0;padding:14px 16px;border-bottom:1px solid var(--line);color:var(--green);text-transform:uppercase;font-size:15px;background:#fbfdfb}.reportPanel table{table-layout:fixed}.reportPanel table th,.reportPanel table td{font-size:12px;white-space:normal;overflow-wrap:anywhere}.wideReport{margin-top:14px}.reportPanel small{color:var(--muted);font-weight:800}
+.commissionTablePanel h2{background:linear-gradient(90deg,#fff,#f7faf7)}.commissionTablePanel .tableWrap{max-height:520px}.commissionTable,.commissionDetailTable{width:100%;table-layout:fixed}.commissionTable th,.commissionDetailTable th{font-size:10px;white-space:normal}.commissionTable td,.commissionDetailTable td{font-size:12px;white-space:normal;overflow-wrap:anywhere}.commissionDetailTable td:nth-child(2),.commissionDetailTable td:nth-child(6){min-width:0}
+@media(max-width:1280px){.reportKpis,.reportGrid,.productPickerGrid{grid-template-columns:1fr}}
+@media(max-width:900px){.proposalItemsWrap{overflow-x:auto}.proposalItemsTable{min-width:820px!important}}
 
 @media(max-width:900px){
   body{background:#f5f8f4;overflow-x:hidden}
